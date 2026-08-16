@@ -148,19 +148,37 @@ class _GameScreenState extends State<GameScreen> {
                     Text('Build', style: Theme.of(context).textTheme.titleLarge),
                     const SizedBox(height: 8),
                     ...StructureType.values.map(
-                      (structure) => ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        title: Text(structure.label),
-                        subtitle: Text(structure.description),
-                        trailing: state.builtStructures.contains(structure)
-                            ? const Icon(Icons.check_circle, color: AppTheme.success)
-                            : OutlinedButton(
+                      (structure) => Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    structure.label,
+                                    style: Theme.of(context).textTheme.titleMedium,
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(structure.description),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            if (state.builtStructures.contains(structure))
+                              const Icon(Icons.check_circle, color: AppTheme.success)
+                            else
+                              OutlinedButton(
                                 onPressed: () {
                                   engine.buildStructure(structure);
                                   _refresh();
                                 },
                                 child: const Text('Build'),
                               ),
+                          ],
+                        ),
                       ),
                     ),
                   ],
