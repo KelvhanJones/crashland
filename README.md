@@ -51,7 +51,7 @@ flutter run -d ios
 Remote repository:
 
 ```text
-https://github.com/JohnnyRJones/crashland
+https://github.com/KelvhanJones/crashland
 ```
 
 ### First-time push
@@ -68,7 +68,7 @@ git init
 git add .
 git commit -m "Initial Crashland Flutter app"
 git branch -M main
-git remote add origin https://github.com/JohnnyRJones/crashland.git
+git remote add origin https://github.com/KelvhanJones/crashland.git
 git push -u origin main
 ```
 
