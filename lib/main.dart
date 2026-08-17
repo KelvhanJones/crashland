@@ -10,16 +10,16 @@ void main() {
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
   ]);
-  runApp(const CrashlandApp());
+  runApp(const PlanecrashApp());
 }
 
-class CrashlandApp extends StatelessWidget {
-  const CrashlandApp({super.key});
+class PlanecrashApp extends StatelessWidget {
+  const PlanecrashApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Crashland',
+      title: 'Planecrash Survival',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.dark,
       home: const HomeScreen(),

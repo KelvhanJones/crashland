@@ -18,6 +18,12 @@ class ResourceCardTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final subtitle = card.isFood
+        ? '+${card.healValue}♥'
+        : card.boneIndex != null
+            ? 'Piece ${card.boneIndex}'
+            : card.kind.label;
+
     return Material(
       color: selected ? const Color(0xFF3A4F43) : const Color(0xFF24362C),
       borderRadius: BorderRadius.circular(compact ? 12 : 16),
@@ -25,7 +31,7 @@ class ResourceCardTile extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(compact ? 12 : 16),
         child: Container(
-          width: compact ? 72 : 92,
+          width: compact ? 84 : 100,
           padding: EdgeInsets.all(compact ? 8 : 12),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(compact ? 12 : 16),
@@ -38,17 +44,26 @@ class ResourceCardTile extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                card.resource.emoji,
-                style: TextStyle(fontSize: compact ? 24 : 30),
+                card.kind.emoji,
+                style: TextStyle(fontSize: compact ? 22 : 28),
               ),
               const SizedBox(height: 6),
               Text(
-                card.resource.label,
+                card.name,
                 textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   color: Colors.white,
-                  fontSize: compact ? 11 : 13,
+                  fontSize: compact ? 11 : 12,
                   fontWeight: FontWeight.w600,
+                ),
+              ),
+              Text(
+                subtitle,
+                style: TextStyle(
+                  color: Colors.white70,
+                  fontSize: compact ? 10 : 11,
                 ),
               ),
             ],

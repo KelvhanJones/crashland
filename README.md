@@ -1,14 +1,20 @@
-# Crashland
+# Planecrash Survival
 
-A cooperative survival card game for **Android and iOS**, built with **Flutter**. Pass one phone or tablet between 2–4 players: gather resources by day, survive island nights together.
+A cooperative survival card game for **Android, iOS, and Windows**, built with **Flutter**. Pass one device between 2–4 players.
 
-> Crashland is an original game inspired by cooperative survival card games. It is not affiliated with any existing tabletop title.
+> Planecrash Survival is an original game. It is not affiliated with any existing tabletop title.
 
 ## Gameplay
 
-- **Day:** Each survivor draws 2 cards, trades with others, contributes to a shared pool, and builds camp structures.
-- **Night:** A threat appears. Pay the required resources from the pool (or hands), rely on structures, or lose hearts.
-- **Win:** Survive all nights with at least one survivor standing.
+Adapted from classic cooperative crash-survival card game structure:
+
+- **Setup:** Each survivor starts with 3 hearts, then rolls 3 more (max 6). Everyone gets a wreckage item. Rescue is shuffled into the last 3 night cards.
+- **First night:** The game begins at night. The crash has already lit a fire, so the camp is protected by flame until dawn.
+- **Forage:** After dawn, flip 1–3 hearts to draw that many forage cards (Basket draws one extra). Rest to recover 1 heart, or if you have a Basket you may rest and draw 1 card instead of healing. Foraging on your last heart without finding food is fatal.
+- **Camp:** Eat food (2+ heart food can be split), trade, stash cards, and craft **Campfire (1 wood)**, **Spear (1 wood + 1 stone)**, **Basket (1 wood + 2 fiber)**, or **Shelter (2 wood + 2 stone + 2 fiber)**. Four bone pieces assemble a circle that can revive someone.
+- **Later nights:** Flip a night card. Fire, shelter, spears, and wreckage can protect you. Fire goes out at dawn, so you must rebuild it.
+- **Madness:** Anyone at 1 heart after night draws a madness effect.
+- **Win:** At least one survivor is alive when **The Rescue** appears.
 - **Lose:** Everyone reaches 0 hearts.
 
 ## Requirements
@@ -66,7 +72,7 @@ If the repo does not exist yet on GitHub:
 ```bash
 git init
 git add .
-git commit -m "Initial Crashland Flutter app"
+git commit -m "Initial Planecrash Survival Flutter app"
 git branch -M main
 git remote add origin https://github.com/KelvhanJones/crashland.git
 git push -u origin main
