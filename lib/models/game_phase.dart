@@ -1,7 +1,8 @@
 enum GamePhase {
   setup,
-  dayDraw,
-  dayAction,
+  dayForage,
+  dayCamp,
   night,
+  madness,
   gameOver,
 }

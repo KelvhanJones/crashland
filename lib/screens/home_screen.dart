@@ -23,7 +23,7 @@ class HomeScreen extends StatelessWidget {
               ),
               const SizedBox(height: 16),
               Text(
-                'Crashland',
+                'Planecrash Survival',
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.headlineLarge?.copyWith(
                       color: AppTheme.accent,
@@ -32,8 +32,8 @@ class HomeScreen extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               Text(
-                'A cooperative survival card game for 2–4 players on one device. '
-                'Gather resources by day, survive the island by night.',
+                'The crash starts at night. The wreck is already burning — '
+                'use that fire, then forage at dawn, craft, and hold out until rescue.',
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                       color: AppTheme.textMuted,
@@ -53,7 +53,7 @@ class HomeScreen extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               Text(
-                'Pass the phone between players during your turn.',
+                'Pass one device between 2–4 survivors.',
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodyMedium,
               ),

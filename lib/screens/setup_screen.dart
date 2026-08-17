@@ -12,7 +12,7 @@ class SetupScreen extends StatefulWidget {
 
 class _SetupScreenState extends State<SetupScreen> {
   int _playerCount = 3;
-  int _nights = 7;
+  int _nights = 8;
   final _controllers = List.generate(4, (_) => TextEditingController());
 
   @override
@@ -47,13 +47,10 @@ class _SetupScreenState extends State<SetupScreen> {
         child: ListView(
           padding: const EdgeInsets.all(24),
           children: [
-            Text(
-              'Survivors',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
+            Text('Survivors', style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 8),
             Text(
-              'Choose how many players are around the campfire.',
+              'Each survivor starts with 3 hearts, then rolls 3 more after the crash.',
               style: Theme.of(context).textTheme.bodyMedium,
             ),
             const SizedBox(height: 16),
@@ -88,16 +85,18 @@ class _SetupScreenState extends State<SetupScreen> {
               );
             }),
             const SizedBox(height: 12),
+            Text('Difficulty', style: Theme.of(context).textTheme.titleLarge),
+            const SizedBox(height: 8),
             Text(
-              'Nights to survive',
-              style: Theme.of(context).textTheme.titleLarge,
+              'Rescue is shuffled into the last 3 night cards. Longer decks are harder.',
+              style: Theme.of(context).textTheme.bodyMedium,
             ),
             const SizedBox(height: 12),
             SegmentedButton<int>(
               segments: const [
-                ButtonSegment(value: 5, label: Text('5')),
-                ButtonSegment(value: 7, label: Text('7')),
-                ButtonSegment(value: 10, label: Text('10')),
+                ButtonSegment(value: 8, label: Text('8 easy')),
+                ButtonSegment(value: 12, label: Text('12')),
+                ButtonSegment(value: 16, label: Text('16 hard')),
               ],
               selected: {_nights},
               onSelectionChanged: (selection) {
@@ -107,7 +106,7 @@ class _SetupScreenState extends State<SetupScreen> {
             const SizedBox(height: 32),
             FilledButton(
               onPressed: _startGame,
-              child: const Text('Begin Day 1'),
+              child: const Text('Face the first night'),
             ),
           ],
         ),
