@@ -1,9 +1,8 @@
 enum MadnessKind {
-  lashOut,
-  hoard,
-  frenzy,
-  collapse,
-  paranoia,
+  /// Lose 1 heart immediately.
+  heartLoss,
+  /// Perform a ridiculous action / roleplay prompt. No mechanical penalty.
+  roleplay,
 }
 
 class MadnessCard {
@@ -18,4 +17,6 @@ class MadnessCard {
   final MadnessKind kind;
   final String title;
   final String description;
+
+  bool get losesHeart => kind == MadnessKind.heartLoss;
 }

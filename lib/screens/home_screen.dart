@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
+import 'join_screen.dart';
 import 'setup_screen.dart';
 
 class HomeScreen extends StatelessWidget {
@@ -49,11 +50,33 @@ class HomeScreen extends StatelessWidget {
                     ),
                   );
                 },
-                child: const Text('New Expedition'),
+                child: const Text('Pass-and-play'),
+              ),
+              const SizedBox(height: 12),
+              FilledButton(
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const SetupScreen(hostOnline: true),
+                    ),
+                  );
+                },
+                child: const Text('Host on this device'),
+              ),
+              const SizedBox(height: 12),
+              OutlinedButton(
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const JoinScreen(),
+                    ),
+                  );
+                },
+                child: const Text('Join another device'),
               ),
               const SizedBox(height: 12),
               Text(
-                'Pass one device between 2–4 survivors.',
+                'Pass one device, or play on the same Wi‑Fi with a host.',
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodyMedium,
               ),

@@ -1,19 +1,36 @@
 # Planecrash Survival
 
-A cooperative survival card game for **Android, iOS, and Windows**, built with **Flutter**. Pass one device between 2–4 players.
+A cooperative survival card game for **Android, iOS, and Windows**, built with **Flutter**. Play pass-and-play on one device, or host a camp on Wi‑Fi so each survivor uses their own phone.
+
+> Planecrash Survival is an original game. It is not affiliated with any existing tabletop title.
 
 > Planecrash Survival is an original game. It is not affiliated with any existing tabletop title.
 
 ## Gameplay
 
-Adapted from classic cooperative crash-survival card game structure:
+Adapted from classic cooperative crash-survival card game structure.
 
-- **Setup:** Each survivor starts with 3 hearts, then rolls 3 more (max 6). Everyone gets a wreckage item. Rescue is shuffled into the last 3 night cards.
+### Component counts
+
+| Deck | Cards |
+|------|------:|
+| Forage | 103 |
+| Night | 41 (includes Rescue) |
+| Madness | 21 |
+| Craft & Guides | 20 |
+| Wreckage | 9 |
+
+Per-type breakdowns live in `lib/game/deck_composition.dart` and can be tuned as we add cards.
+
+### Rules
+
+- **Setup:** Each survivor starts with 3 hearts, then rolls 3 more (max 6). Everyone gets a wreckage item from the 9-card wreckage pool. Difficulty deals that many nights from the 41-card night deck; Rescue is shuffled into the last 3 night cards.
 - **First night:** The game begins at night. The crash has already lit a fire, so the camp is protected by flame until dawn.
-- **Forage:** After dawn, flip 1–3 hearts to draw that many forage cards (Basket draws one extra). Rest to recover 1 heart, or if you have a Basket you may rest and draw 1 card instead of healing. Foraging on your last heart without finding food is fatal.
-- **Camp:** Eat food (2+ heart food can be split), trade, stash cards, and craft **Campfire (1 wood)**, **Spear (1 wood + 1 stone)**, **Basket (1 wood + 2 fiber)**, or **Shelter (2 wood + 2 stone + 2 fiber)**. Four bone pieces assemble a circle that can revive someone.
-- **Later nights:** Flip a night card. Fire, shelter, spears, and wreckage can protect you. Fire goes out at dawn, so you must rebuild it.
-- **Madness:** Anyone at 1 heart after night draws a madness effect.
+- **Forage:** After dawn, flip 1–3 hearts to draw that many forage cards (Basket draws one extra). Rest to recover 1 heart, or if you have a Basket you may rest and draw 1 card instead of healing. You may forage down to **0♥** and stay alive until the **next dawn** — eat food or use a heal wreckage before then, or you die at dawn.
+- **Camp:** Eat food (2+ heart food can be split), use wreckage heals on any survivor (owner decides), trade, stash cards, and craft from a limited concurrent stock — **Campfire (1 wood)**, **Spear ×6 (1 wood + 1 stone)**, **Basket ×5 (1 wood + 2 fiber)**, or **Shelter ×2 (2 wood + 2 stone + 2 fiber)**. Each shelter covers up to **3 survivors chosen when you craft it**. Only that many of each craft card can be in play at once; used or destroyed cards return to the craft deck. Four bone pieces assemble a circle that can revive someone.
+- **Wreckage:** Owners choose who benefits. **Taser** (reusable) or spear blocks 1 animal/human attack. **Flare Gun** protects the whole camp from 1 animal attack. **Tarp** (reusable), **Airline Blanket**, and **Newspaper** (2 players) block weather. **Vodka** (+3♥, shareable), **Chocolate** (+3♥, no split), and **Adrenaline** (full heal) restore hearts.
+- **Later nights:** Flip a night card from the 41-card deck (weather, animal, or quiet events). Fire can cancel or soften some threats. Shelter and wreckage protect against weather; spears, taser, and flare gun help against animal attacks. Food and heal wreckage can be used during night before you resolve. Some weather bans fire for the next night. **The Cave** grants permanent shelter for everyone. **The Rescue** wins the game.
+- **Madness:** Anyone at 1 heart after night draws **one** madness card. **8 cards** cost 1♥; the other **13** are ridiculous roleplay prompts (talk like a pirate, sing everything, etc.) with no mechanical penalty.
 - **Win:** At least one survivor is alive when **The Rescue** appears.
 - **Lose:** Everyone reaches 0 hearts.
 
@@ -37,6 +54,16 @@ cd crashland
 flutter pub get
 flutter run
 ```
+
+### Multi-device (same Wi‑Fi)
+
+1. One player taps **Host on this device** and shares the IP shown in the lobby.
+2. Everyone else taps **Join another device** and enters that IP plus their name.
+3. Host taps **Start expedition** when at least two survivors are seated.
+
+Windows may prompt to allow the app through the firewall. Phones and the host must be on the same network.
+
+The forage deck list is still a placeholder — counts live in `lib/game/deck_composition.dart` until the card list is finalized.
 
 ### Android
 

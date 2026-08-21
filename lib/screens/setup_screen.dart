@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 
 import '../game/game_engine.dart';
+import '../net/table_session.dart';
 import 'game_screen.dart';
+import 'lobby_screen.dart';
 
 class SetupScreen extends StatefulWidget {
-  const SetupScreen({super.key});
+  const SetupScreen({super.key, this.hostOnline = false});
+
+  final bool hostOnline;
 
   @override
   State<SetupScreen> createState() => _SetupScreenState();
@@ -14,6 +18,8 @@ class _SetupScreenState extends State<SetupScreen> {
   int _playerCount = 3;
   int _nights = 8;
   final _controllers = List.generate(4, (_) => TextEditingController());
+  var _busy = false;
+  String? _error;
 
   @override
   void dispose() {
@@ -23,15 +29,48 @@ class _SetupScreenState extends State<SetupScreen> {
     super.dispose();
   }
 
-  void _startGame() {
+  Future<void> _start() async {
+    if (widget.hostOnline) {
+      setState(() {
+        _busy = true;
+        _error = null;
+      });
+      final session = createHostSession();
+      try {
+        await session.host(
+          hostName: _controllers[0].text.trim().isEmpty
+              ? 'Survivor 1'
+              : _controllers[0].text.trim(),
+          playerCount: _playerCount,
+          totalNights: _nights,
+        );
+        if (!mounted) {
+          await session.disposeSession();
+          return;
+        }
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute<void>(
+            builder: (_) => LobbyScreen(session: session),
+          ),
+        );
+      } catch (error) {
+        await session.disposeSession();
+        if (mounted) {
+          setState(() {
+            _busy = false;
+            _error = '$error';
+          });
+        }
+      }
+      return;
+    }
+
     final names = List<String>.generate(
       _playerCount,
       (index) => _controllers[index].text,
     );
-
     final engine = GameEngine();
     engine.startGame(playerNames: names, totalNights: _nights);
-
     Navigator.of(context).pushReplacement(
       MaterialPageRoute<void>(
         builder: (_) => GameScreen(engine: engine),
@@ -42,7 +81,9 @@ class _SetupScreenState extends State<SetupScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Expedition Setup')),
+      appBar: AppBar(
+        title: Text(widget.hostOnline ? 'Host expedition' : 'Expedition Setup'),
+      ),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(24),
@@ -50,7 +91,9 @@ class _SetupScreenState extends State<SetupScreen> {
             Text('Survivors', style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 8),
             Text(
-              'Each survivor starts with 3 hearts, then rolls 3 more after the crash.',
+              widget.hostOnline
+                  ? 'How many survivors will join this Wi‑Fi game, including you?'
+                  : 'Each survivor starts with 3 hearts, then rolls 3 more after the crash.',
               style: Theme.of(context).textTheme.bodyMedium,
             ),
             const SizedBox(height: 16),
@@ -66,13 +109,17 @@ class _SetupScreenState extends State<SetupScreen> {
               },
             ),
             const SizedBox(height: 24),
-            ...List.generate(_playerCount, (index) {
+            ...List.generate(
+              widget.hostOnline ? 1 : _playerCount,
+              (index) {
               return Padding(
                 padding: const EdgeInsets.only(bottom: 12),
                 child: TextField(
                   controller: _controllers[index],
                   decoration: InputDecoration(
-                    labelText: 'Survivor ${index + 1}',
+                    labelText: widget.hostOnline
+                        ? 'Your name (host)'
+                        : 'Survivor ${index + 1}',
                     hintText: 'Optional name',
                     filled: true,
                     fillColor: const Color(0xFF1B2A22),
@@ -103,10 +150,18 @@ class _SetupScreenState extends State<SetupScreen> {
                 setState(() => _nights = selection.first);
               },
             ),
+            if (_error != null) ...[
+              const SizedBox(height: 12),
+              Text(_error!, style: const TextStyle(color: Color(0xFFD65A4D))),
+            ],
             const SizedBox(height: 32),
             FilledButton(
-              onPressed: _startGame,
-              child: const Text('Face the first night'),
+              onPressed: _busy ? null : _start,
+              child: Text(
+                widget.hostOnline
+                    ? (_busy ? 'Opening camp…' : 'Open lobby')
+                    : 'Face the first night',
+              ),
             ),
           ],
         ),
