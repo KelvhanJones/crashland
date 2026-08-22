@@ -16,6 +16,8 @@ class Player {
     this.forcedRest = false,
     this.pendingMadness,
     this.drewMadnessThisNight = false,
+    this.armsLocked = false,
+    this.immobilized = false,
   }) : hand = List<GameCard>.from(hand ?? const []);
 
   final String id;
@@ -32,6 +34,13 @@ class Player {
   MadnessCard? pendingMadness;
   /// One madness card per night, even if they stay at 1♥ after a roleplay prompt.
   bool drewMadnessThisNight;
+  /// Paralysis: cannot use arms until the next dawn.
+  bool armsLocked;
+  /// Neurotoxin: cannot move or speak until the next dawn.
+  bool immobilized;
+
+  /// Cannot craft, play cards, or use wreckage.
+  bool get cannotAct => !isAlive || armsLocked || immobilized;
 
   /// Still in the game. Hearts may be 0 until the next dawn.
   bool get isAlive => !dead;

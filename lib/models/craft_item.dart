@@ -1,24 +1,24 @@
 enum CraftItem {
   fire(
     'Campfire',
-    'Warms the whole camp for one night. Goes out at dawn, then returns to the craft deck.',
+    'One campfire. Costs 1 wood to light. Goes out at dawn. Not a craft-deck card.',
     wood: 1,
   ),
   spear(
     'Spear',
-    'Stops one animal or human attack for a single survivor. Breaks after use and returns to the craft deck.',
+    'Give to any survivor. Stops one animal or human attack for them. Breaks after use and returns to the craft deck.',
     wood: 1,
     stone: 1,
   ),
   basket(
     'Basket',
-    'Draw one extra forage card when you forage. If you rest, you may draw 1 card instead of recovering a heart. Returns to the craft deck if its owner dies.',
+    'Give to a survivor who does not already have one. Draw one extra forage card when you forage. If you rest, you may draw 1 card instead of recovering a heart. Returns to the craft deck if its owner dies.',
     wood: 1,
     fiber: 2,
   ),
   shelter(
     'Shelter',
-    'Protects up to 3 survivors from most weather. Choose who when you craft it. Some night cards destroy it — then it returns to the craft deck.',
+    'Protects up to 3 survivors from most weather. With fewer than 4 survivors, everyone is covered. With 4, choose who. Some night cards destroy it — then it returns to the craft deck.',
     wood: 2,
     stone: 2,
     fiber: 2,

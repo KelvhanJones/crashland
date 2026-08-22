@@ -30,14 +30,18 @@ class GameState {
     List<GameCard>? campStash,
     List<BuiltShelter>? shelters,
     this.activeNight,
+    List<NightCard>? peekedNights,
     String message = 'Day 1 — forage, then return to camp.',
     this.won = false,
     Set<String>? foragedThisRound,
+    Set<String>? freshForageIds,
     List<String>? actionLog,
   })  : craftStock = craftStock ?? Decks.craftStock(),
         campStash = campStash ?? [],
         shelters = shelters ?? [],
+        peekedNights = peekedNights ?? [],
         foragedThisRound = foragedThisRound ?? {},
+        freshForageIds = freshForageIds ?? {},
         _message = message,
         actionLog = List<String>.from(actionLog ?? [message]);
 
@@ -63,9 +67,13 @@ class GameState {
   /// Each shelter protects up to 3 survivors chosen when it was crafted.
   final List<BuiltShelter> shelters;
   NightCard? activeNight;
+  /// Magical mushrooms: upcoming nights still in the deck.
+  List<NightCard> peekedNights;
   String _message;
   bool won;
   Set<String> foragedThisRound;
+  /// Cards drawn this forage round; hidden from other survivors until camp.
+  Set<String> freshForageIds;
   /// Scrollable history of what happened (banner messages + heart changes).
   final List<String> actionLog;
 
@@ -109,20 +117,15 @@ class GameState {
     return total;
   }
 
-  Set<int> get collectedBones {
-    final bones = <int>{};
-    for (final card in campStash) {
-      if (card.boneIndex != null) bones.add(card.boneIndex!);
-    }
+  int get boneCount {
+    var total = campStash.where((card) => card.kind == CardKind.bonePile).length;
     for (final player in alivePlayers) {
-      for (final card in player.hand) {
-        if (card.boneIndex != null) bones.add(card.boneIndex!);
-      }
+      total += player.hand.where((card) => card.kind == CardKind.bonePile).length;
     }
-    return bones;
+    return total;
   }
 
-  bool get canAssembleBones => collectedBones.length >= 4;
+  bool get canAssembleBones => boneCount >= 4;
 }
 
 class GameEngine {
@@ -225,6 +228,10 @@ class GameEngine {
     if (state.phase != GamePhase.dayForage) return;
     final player = state.currentPlayer;
     if (!player.isAlive || state.foragedThisRound.contains(player.id)) return;
+    if (player.immobilized) {
+      skipImmobilizedForage();
+      return;
+    }
     if (player.forcedForage != null) {
       state.message = '${player.name} is in a frenzy and must forage.';
       return;
@@ -241,12 +248,16 @@ class GameEngine {
       final card = _drawForage();
       final notes = <String>[];
       if (card != null) {
-        player.hand.add(card);
+        _receiveDrawnForage(player, card);
         if (card.kind == CardKind.uhOh) {
           notes.add(_resolveUhOh(player, card));
         }
       }
-      final found = card == null ? 'nothing' : card.name;
+      final found = card == null
+          ? 'nothing'
+          : (card.kind == CardKind.bonePile
+              ? '${card.name} (camp)'
+              : card.name);
       state.message =
           '${player.name} rests and uses the basket to forage $found (no heart recovered).'
           '${notes.isEmpty ? '' : ' ${notes.join(' ')}'}';
@@ -264,6 +275,10 @@ class GameEngine {
     if (state.phase != GamePhase.dayForage) return;
     final player = state.currentPlayer;
     if (!player.isAlive || state.foragedThisRound.contains(player.id)) return;
+    if (player.immobilized) {
+      skipImmobilizedForage();
+      return;
+    }
     if (player.forcedRest) {
       state.message = '${player.name} collapses and must rest.';
       return;
@@ -289,7 +304,7 @@ class GameEngine {
       final card = _drawForage();
       if (card == null) break;
       drawn.add(card);
-      player.hand.add(card);
+      _receiveDrawnForage(player, card);
     }
 
     final notes = <String>[];
@@ -308,10 +323,27 @@ class GameEngine {
     }
 
     state.foragedThisRound.add(player.id);
-    final haul = drawn.map((card) => card.name).join(', ');
+    final haul = drawn
+        .map(
+          (card) => card.kind == CardKind.bonePile
+              ? '${card.name} (camp)'
+              : card.name,
+        )
+        .join(', ');
     state.message =
         '${player.name} flipped $amount♥ and found: ${haul.isEmpty ? 'nothing' : haul}.'
         '${notes.isEmpty ? '' : ' ${notes.join(' ')}'}';
+    _advanceForage(state);
+  }
+
+  void skipImmobilizedForage() {
+    final state = _requireState();
+    if (state.phase != GamePhase.dayForage) return;
+    final player = state.currentPlayer;
+    if (!player.isAlive || state.foragedThisRound.contains(player.id)) return;
+    state.foragedThisRound.add(player.id);
+    state.message =
+        '${player.name} cannot move and skips foraging until the next day.';
     _advanceForage(state);
   }
 
@@ -319,7 +351,16 @@ class GameEngine {
     final state = _requireState();
     if (state.phase != GamePhase.dayCamp) return;
     final player = _player(playerId);
-    if (!player.isAlive) return;
+    if (player.cannotAct) return;
+    final held = player.hand.cast<GameCard?>().firstWhere(
+          (item) => item?.id == cardId,
+          orElse: () => null,
+        );
+    if (held == null) return;
+    if (held.kind == CardKind.wood) {
+      state.message = 'Wood stays with survivors. Select it to light the fire.';
+      return;
+    }
     final card = _takeFromHand(player, cardId);
     if (card == null) return;
     state.campStash.add(card);
@@ -332,10 +373,15 @@ class GameEngine {
       return;
     }
     final player = _player(playerId);
-    if (!player.isAlive) return;
+    if (player.cannotAct) return;
     final index = state.campStash.indexWhere((card) => card.id == cardId);
     if (index == -1) return;
-    final card = state.campStash.removeAt(index);
+    final card = state.campStash[index];
+    if (card.kind == CardKind.bonePile) {
+      state.message = 'Bone piles stay at camp.';
+      return;
+    }
+    state.campStash.removeAt(index);
     player.hand.add(card);
     state.message = '${player.name} took ${card.name} from camp.';
   }
@@ -349,14 +395,14 @@ class GameEngine {
     if (state.phase != GamePhase.dayCamp) return;
     final from = _player(fromPlayerId);
     final to = _player(toPlayerId);
-    if (!from.isAlive || !to.isAlive || from.cannotTrade) return;
+    if (from.cannotAct || to.cannotAct || from.cannotTrade) return;
     final card = _takeFromHand(from, cardId);
     if (card == null) return;
     to.hand.add(card);
     state.message = '${from.name} gave ${card.name} to ${to.name}.';
   }
 
-  void eatFood(String playerId, String cardId, {int hearts = 1}) {
+  void eatFood(String playerId, String cardId, {int? hearts}) {
     useHealCard(
       ownerId: playerId,
       cardId: cardId,
@@ -365,7 +411,8 @@ class GameEngine {
     );
   }
 
-  /// Heal with food or wreckage. [ownerId] holds the card; [targetId] receives the heal.
+  /// Heal with food or wreckage. [ownerId] acts; the card may be in their hand
+  /// or in the camp stash.
   void useHealCard({
     required String ownerId,
     required String cardId,
@@ -378,41 +425,146 @@ class GameEngine {
         state.phase != GamePhase.night) {
       return;
     }
-    final owner = _player(ownerId);
+    var actor = _player(ownerId);
     final target = _player(targetId);
-    if (owner.dead || target.dead) return;
+    if (target.dead) return;
 
-    final card = owner.hand.cast<GameCard?>().firstWhere(
-          (item) => item?.id == cardId,
-          orElse: () => null,
-        );
-    if (card == null) return;
+    final located = _locateHealCard(cardId);
+    if (located == null) return;
+    final (card, fromCamp) = located;
+    if (actor.cannotAct || actor.dead) {
+      if (!fromCamp) return;
+      final capable = state.alivePlayers.where((player) => !player.cannotAct);
+      if (capable.isEmpty) return;
+      actor = capable.first;
+    }
 
     final isWreckage = card.wreckage != null;
     if (!card.isFood && !card.isWreckageHeal) return;
     if (state.phase == GamePhase.dayForage && !isWreckage) return;
+    if (fromCamp && state.phase == GamePhase.dayForage) return;
 
     // Chocolate may be used on another survivor (full amount) but cannot be split.
     if (card.fullHeal || card.wreckage == WreckageAbility.adrenaline) {
-      owner.hand.remove(card);
+      _removeLocatedCard(card, actor: actor, fromCamp: fromCamp);
       target.hearts = target.maxHearts;
       if (target.hearts >= 2) target.cannotTrade = false;
       state.message =
-          '${owner.name} uses ${card.name} on ${target.name} — fully restored to ${target.hearts}♥.';
+          '${actor.name} uses ${card.name} on ${target.name} — fully restored to ${target.hearts}♥.';
       return;
     }
 
     final heal = hearts ?? card.healValue;
     if (heal <= 0) return;
-    owner.hand.remove(card);
+    _removeLocatedCard(card, actor: actor, fromCamp: fromCamp);
     target.hearts = min(target.maxHearts, target.hearts + heal);
     if (target.hearts >= 2) target.cannotTrade = false;
     state.message = ownerId == targetId
         ? '${target.name} uses ${card.name} and is at ${target.hearts}♥.'
-        : '${owner.name} uses ${card.name} on ${target.name} — now ${target.hearts}♥.';
+        : '${actor.name} uses ${card.name} on ${target.name} — now ${target.hearts}♥.';
   }
 
-  /// Split a shareable heal (vodka) between two survivors. Hearts must sum to the card value.
+  bool _canSplitHeal(GameCard card) =>
+      card.wreckage == WreckageAbility.vodka ||
+      (card.isFood && card.healValue > 0 && !card.fullHeal);
+
+  (GameCard, bool)? _locateHealCard(String cardId) {
+    final state = _requireState();
+    final campIndex = state.campStash.indexWhere((item) => item.id == cardId);
+    if (campIndex != -1) {
+      return (state.campStash[campIndex], true);
+    }
+    for (final player in state.players) {
+      final index = player.hand.indexWhere((item) => item.id == cardId);
+      if (index == -1) continue;
+      return (player.hand[index], false);
+    }
+    return null;
+  }
+
+  void _removeLocatedCard(
+    GameCard card, {
+    required Player actor,
+    required bool fromCamp,
+  }) {
+    final state = _requireState();
+    if (fromCamp) {
+      state.campStash.removeWhere((item) => item.id == card.id);
+      return;
+    }
+    for (final player in state.players) {
+      if (player.hand.remove(card)) return;
+    }
+    actor.hand.remove(card);
+  }
+
+  /// Heal with food or vodka. [shares] may be one or more living survivors
+  /// and may use some or all of the card's hearts.
+  bool splitHeal({
+    required String ownerId,
+    required String cardId,
+    required Map<String, int> shares,
+  }) {
+    final state = _requireState();
+    if (state.phase != GamePhase.dayCamp && state.phase != GamePhase.night) {
+      return false;
+    }
+
+    var actor = _player(ownerId);
+    final located = _locateHealCard(cardId);
+    if (located == null) return false;
+    final (card, fromCamp) = located;
+    if (!_canSplitHeal(card)) return false;
+
+    if (actor.cannotAct) {
+      if (!fromCamp) return false;
+      final capable = state.alivePlayers.where((player) => !player.cannotAct);
+      if (capable.isEmpty) return false;
+      actor = capable.first;
+    }
+
+    final cleaned = <String, int>{
+      for (final entry in shares.entries)
+        if (entry.value > 0) entry.key: entry.value,
+    };
+    if (cleaned.isEmpty) return false;
+
+    final recipients = <Player, int>{};
+    var total = 0;
+    for (final entry in cleaned.entries) {
+      final player = _player(entry.key);
+      if (player.dead) {
+        state.message = '${player.name} cannot be healed.';
+        return false;
+      }
+      final room = player.maxHearts - player.hearts;
+      final given = min(entry.value, room);
+      if (given < 1) continue;
+      recipients[player] = given;
+      total += given;
+    }
+    if (recipients.isEmpty || total < 1) {
+      state.message = 'No empty hearts to fill with ${card.name}.';
+      return false;
+    }
+    if (total > card.healValue) return false;
+
+    _removeLocatedCard(card, actor: actor, fromCamp: fromCamp);
+    for (final entry in recipients.entries) {
+      entry.key.hearts =
+          min(entry.key.maxHearts, entry.key.hearts + entry.value);
+      if (entry.key.hearts >= 2) entry.key.cannotTrade = false;
+    }
+    final parts = recipients.entries
+        .map((entry) => '${entry.key.name} +${entry.value}♥')
+        .join(', ');
+    state.message = fromCamp
+        ? '${actor.name} shares camp ${card.name}: $parts.'
+        : '${actor.name} uses ${card.name}: $parts.';
+    return true;
+  }
+
+  /// Split a shareable heal (vodka) between the owner and one other survivor.
   void shareHealCard({
     required String ownerId,
     required String cardId,
@@ -420,68 +572,39 @@ class GameEngine {
     int ownerHearts = 1,
     int otherHearts = 2,
   }) {
-    final state = _requireState();
-    if (state.phase != GamePhase.dayCamp && state.phase != GamePhase.night) {
-      return;
-    }
-    final owner = _player(ownerId);
-    final other = _player(otherId);
-    if (owner.dead || other.dead) return;
-
-    final card = owner.hand.cast<GameCard?>().firstWhere(
-          (item) => item?.id == cardId,
-          orElse: () => null,
-        );
-    if (card == null) return;
-    if (card.wreckage != WreckageAbility.vodka &&
-        !(card.isFood && card.healValue >= 2)) {
-      return;
-    }
-    if (ownerHearts + otherHearts != card.healValue) return;
-
-    owner.hand.remove(card);
-    owner.hearts = min(owner.maxHearts, owner.hearts + ownerHearts);
-    other.hearts = min(other.maxHearts, other.hearts + otherHearts);
-    if (owner.hearts >= 2) owner.cannotTrade = false;
-    if (other.hearts >= 2) other.cannotTrade = false;
-    state.message =
-        '${owner.name} shares ${card.name}: +$ownerHearts♥ / ${other.name} +$otherHearts♥.';
+    splitHeal(
+      ownerId: ownerId,
+      cardId: cardId,
+      shares: {ownerId: ownerHearts, otherId: otherHearts},
+    );
   }
 
   void splitFood({
     required String fromPlayerId,
     required String toPlayerId,
     required String cardId,
+    int fromHearts = 1,
+    int toHearts = 1,
   }) {
-    final state = _requireState();
-    if (state.phase != GamePhase.dayCamp && state.phase != GamePhase.night) {
-      return;
-    }
-    final from = _player(fromPlayerId);
-    final to = _player(toPlayerId);
-    if (from.dead || to.dead) return;
-    final card = from.hand.cast<GameCard?>().firstWhere(
-          (item) => item?.id == cardId,
-          orElse: () => null,
-        );
-    if (card == null || !card.isFood || card.healValue < 2) return;
-    from.hand.remove(card);
-    from.hearts = min(from.maxHearts, from.hearts + 1);
-    to.hearts = min(to.maxHearts, to.hearts + 1);
-    if (from.hearts >= 2) from.cannotTrade = false;
-    if (to.hearts >= 2) to.cannotTrade = false;
-    state.message =
-        '${from.name} split ${card.name} with ${to.name}. Both gain 1♥.';
+    splitHeal(
+      ownerId: fromPlayerId,
+      cardId: cardId,
+      shares: {fromPlayerId: fromHearts, toPlayerId: toHearts},
+    );
   }
 
   bool canCraft(CraftItem item, {String? playerId}) {
     final state = _state;
     if (state == null || state.phase != GamePhase.dayCamp) return false;
-    if (state.craftRemaining(item) <= 0) return false;
+    if (item != CraftItem.fire && state.craftRemaining(item) <= 0) return false;
     if (item == CraftItem.fire && state.fireLit) return false;
     if (item == CraftItem.fire && state.fireBlockedNextNight) return false;
     final crafter = playerId == null ? state.currentPlayer : _player(playerId);
-    if (item == CraftItem.basket && crafter.hasBasket) return false;
+    if (crafter.cannotAct) return false;
+    if (item == CraftItem.basket &&
+        state.alivePlayers.every((player) => player.hasBasket)) {
+      return false;
+    }
     return _canPay(item);
   }
 
@@ -489,30 +612,39 @@ class GameEngine {
     CraftItem item, {
     Set<String> shelterOccupantIds = const {},
     String? playerId,
+    String? recipientId,
   }) {
+    if (item == CraftItem.fire) {
+      lightFire(playerId: playerId);
+      return;
+    }
     final state = _requireState();
     if (state.phase != GamePhase.dayCamp) return;
     final crafter = playerId == null ? state.currentPlayer : _player(playerId);
+    if (crafter.cannotAct) return;
 
     if (state.craftRemaining(item) <= 0) {
       state.message =
           'No ${item.label} cards available — all are in play.';
       return;
     }
-    if (item == CraftItem.fire && state.fireLit) {
-      state.message = 'The campfire is already lit.';
-      return;
+
+    Player? recipient;
+    if (item == CraftItem.spear || item == CraftItem.basket) {
+      recipient = recipientId == null ? crafter : _player(recipientId);
+      if (!recipient.isAlive) {
+        state.message =
+            '${recipient.name} is gone and cannot take a ${item.label}.';
+        return;
+      }
+      if (item == CraftItem.basket && recipient.hasBasket) {
+        state.message = '${recipient.name} already has a Basket.';
+        return;
+      }
     }
-    if (item == CraftItem.fire && state.fireBlockedNextNight) {
-      state.message = 'Last night\'s weather blocks fire for tonight.';
-      return;
-    }
+
     if (!_canPay(item)) {
       state.message = 'Not enough materials for ${item.label}.';
-      return;
-    }
-    if (item == CraftItem.basket && crafter.hasBasket) {
-      state.message = '${crafter.name} already has a Basket.';
       return;
     }
 
@@ -520,6 +652,9 @@ class GameEngine {
     if (item == CraftItem.shelter) {
       final aliveIds = state.alivePlayers.map((p) => p.id).toSet();
       shelterOccupants = shelterOccupantIds.where(aliveIds.contains).toSet();
+      if (shelterOccupants.isEmpty && aliveIds.length <= 3) {
+        shelterOccupants = aliveIds;
+      }
       if (shelterOccupants.isEmpty || shelterOccupants.length > 3) {
         state.message =
             'Choose 1–3 living survivors for this shelter when you craft it.';
@@ -531,10 +666,7 @@ class GameEngine {
     _takeCraft(item);
     switch (item) {
       case CraftItem.fire:
-        state.fireLit = true;
-        state.fireFromCraft = true;
-        state.message =
-            'The campfire is lit. It lasts through tonight, then returns to the craft deck.';
+        break;
       case CraftItem.shelter:
         final occupants = shelterOccupants!;
         state.shelters.add(BuiltShelter(occupantIds: occupants));
@@ -545,29 +677,97 @@ class GameEngine {
         state.message =
             'Shelter built for $names. Occupants are locked in until the shelter is wrecked.';
       case CraftItem.basket:
-        crafter.hasBasket = true;
-        state.message = '${crafter.name} crafted a Basket.';
+        recipient!.hasBasket = true;
+        state.message = recipient.id == crafter.id
+            ? '${crafter.name} crafted a Basket.'
+            : '${crafter.name} crafted a Basket for ${recipient.name}.';
       case CraftItem.spear:
-        crafter.spearCount += 1;
-        state.message = '${crafter.name} crafted a Spear.';
+        recipient!.spearCount += 1;
+        state.message = recipient.id == crafter.id
+            ? '${crafter.name} crafted a Spear.'
+            : '${crafter.name} crafted a Spear for ${recipient.name}.';
     }
   }
 
-  void assembleBoneCircle() {
+  /// Light the campfire with a specific wood card, or any wood if [woodCardId] is omitted.
+  void lightFire({String? playerId, String? woodCardId}) {
+    final state = _requireState();
+    if (state.phase != GamePhase.dayCamp) return;
+    final actor = playerId == null ? state.currentPlayer : _player(playerId);
+    if (actor.cannotAct) return;
+    if (state.fireLit) {
+      state.message = 'The campfire is already lit.';
+      return;
+    }
+    if (state.fireBlockedNextNight) {
+      state.message = 'Last night\'s weather blocks fire for tonight.';
+      return;
+    }
+
+    if (woodCardId != null) {
+      if (!_spendWoodCard(woodCardId)) {
+        state.message = 'Select a wood card to light the fire.';
+        return;
+      }
+    } else if (!_canPay(CraftItem.fire)) {
+      state.message = 'Need 1 wood to light the fire.';
+      return;
+    } else {
+      _pay(CraftItem.fire);
+    }
+
+    _takeCraft(CraftItem.fire);
+    state.fireLit = true;
+    state.fireFromCraft = true;
+    state.message =
+        '${actor.name} lights the campfire. It lasts through tonight.';
+  }
+
+  bool _spendWoodCard(String cardId) {
+    final state = _requireState();
+    final campIndex = state.campStash.indexWhere(
+      (card) => card.id == cardId && card.kind == CardKind.wood,
+    );
+    if (campIndex != -1) {
+      state.campStash.removeAt(campIndex);
+      return true;
+    }
+    for (final player in state.players) {
+      final index = player.hand.indexWhere(
+        (card) => card.id == cardId && card.kind == CardKind.wood,
+      );
+      if (index == -1) continue;
+      player.hand.removeAt(index);
+      return true;
+    }
+    return false;
+  }
+
+  void assembleBoneCircle({String? playerId}) {
     final state = _requireState();
     if (state.phase != GamePhase.dayCamp || !state.canAssembleBones) return;
+    final actor = playerId == null ? state.currentPlayer : _player(playerId);
+    if (actor.cannotAct) return;
 
     _removeBones();
+    final alreadyLiving = state.alivePlayers.toList();
     Player? revived;
     for (final player in state.players) {
-      if (!player.isAlive) {
-        player.hearts = 3;
-        revived = player;
-        break;
-      }
+      if (player.isAlive) continue;
+      player.dead = false;
+      player.hearts = 3;
+      player.cannotTrade = false;
+      player.armsLocked = false;
+      player.immobilized = false;
+      player.forcedRest = false;
+      player.forcedForage = null;
+      player.pendingMadness = null;
+      revived = player;
+      break;
     }
-    for (final player in state.alivePlayers) {
+    for (final player in alreadyLiving) {
       player.hearts = min(player.maxHearts, player.hearts + 2);
+      if (player.hearts >= 2) player.cannotTrade = false;
     }
     state.message = revived == null
         ? 'The bone circle hums. Every living survivor gains 2♥.'
@@ -587,6 +787,7 @@ class GameEngine {
     }
 
     state.nightNumber += 1;
+    state.peekedNights.clear();
     state.activeNight = state.nightDeck.removeLast();
     state.phase = GamePhase.night;
     final fireNote = state.fireLit
@@ -627,6 +828,7 @@ class GameEngine {
       final found = _findWreckage(use.cardId);
       if (found == null) continue;
       final (owner, card) = found;
+      if (owner.cannotAct) continue;
       final ability = card.wreckage!;
 
       if (night.isWeather && ability.blocksWeather) {
@@ -660,6 +862,7 @@ class GameEngine {
     if (night.dealsAnimalHeartDamage) {
       for (final playerId in spearUsers) {
         final player = _player(playerId);
+        if (player.cannotAct) continue;
         if (player.spearCount <= 0) continue;
         _consumeSpear(player);
         attackProtected.add(player.id);
@@ -838,6 +1041,8 @@ class GameEngine {
     if (state.phase == GamePhase.gameOver) return;
     if (state.alivePlayers.every((p) => state.foragedThisRound.contains(p.id))) {
       state.phase = GamePhase.dayCamp;
+      state.freshForageIds.clear();
+      _collectBonesAtCamp(state);
       state.currentPlayerIndex =
           state.players.indexOf(state.alivePlayers.first);
       state.message =
@@ -863,29 +1068,101 @@ class GameEngine {
     return state.foragePile.removeLast();
   }
 
+  void _receiveDrawnForage(Player player, GameCard card) {
+    final state = _requireState();
+    if (card.kind == CardKind.bonePile) {
+      state.campStash.add(card);
+      return;
+    }
+    player.hand.add(card);
+    state.freshForageIds.add(card.id);
+  }
+
+  void _collectBonesAtCamp(GameState state) {
+    for (final player in state.players) {
+      final bones = [
+        for (final card in player.hand)
+          if (card.kind == CardKind.bonePile) card,
+      ];
+      for (final bone in bones) {
+        player.hand.remove(bone);
+        state.campStash.add(bone);
+      }
+    }
+  }
+
   String _resolveUhOh(Player player, GameCard card) {
     player.hand.remove(card);
     switch (card.uhOh) {
-      case UhOhEffect.injury:
-        _damage(player, 1, cause: 'Unstable slope');
-        return 'Unstable slope: ${player.name} loses 1♥.';
-      case UhOhEffect.spoiled:
-        final food = player.hand.where((item) => item.isFood).toList();
-        if (food.isNotEmpty) {
-          player.hand.remove(food.first);
-          return 'Spoiled cache: ${player.name} loses ${food.first.name}.';
+      case UhOhEffect.none:
+        return '${card.flavor} ${card.name}.'.trim();
+      case UhOhEffect.drawMadness:
+        return _resolveForageMadness(player, card);
+      case UhOhEffect.setHeartsToOne:
+        if (player.hearts > 1) {
+          final lost = player.hearts - 1;
+          player.hearts = 1;
+          _requireState().log(
+            '${player.name} loses $lost♥ — ${card.name} (now 1♥)',
+          );
         }
-        _damage(player, 1, cause: 'Spoiled cache');
-        return 'Spoiled cache: no food to lose, ${player.name} loses 1♥.';
-      case UhOhEffect.beast:
-        if (player.canBlockAttack) {
+        return '${card.flavor} ${card.name}: ${player.name} is left with ${player.hearts}♥.';
+      case UhOhEffect.loseHearts:
+        final loss = card.uhOhDamage <= 0 ? 2 : card.uhOhDamage;
+        if (card.blockable && player.canBlockAttack) {
           final weapon = _consumeAttackBlock(player);
-          return 'A beast attacks; ${player.name}\'s $weapon holds it off.';
+          return '${card.name} attacks; ${player.name}\'s $weapon holds it off.';
         }
-        _damage(player, 2, cause: 'Stalking beast');
-        return 'A beast attacks ${player.name} for 2♥.';
+        _damage(player, loss, cause: card.name);
+        return '${card.flavor} ${card.name}: ${player.name} loses $loss♥.';
+      case UhOhEffect.lockArms:
+        player.armsLocked = true;
+        return '${card.flavor} ${card.name}: ${player.name} cannot use their arms until the next day.';
+      case UhOhEffect.immobilize:
+        player.immobilized = true;
+        return '${card.flavor} ${card.name}: ${player.name} cannot move or speak until the next day.';
+      case UhOhEffect.peekNights:
+        return _peekUpcomingNights(player, card);
       case null:
         return '';
+    }
+  }
+
+  String _peekUpcomingNights(Player player, GameCard source) {
+    final state = _requireState();
+    final count = source.peekCount <= 0 ? 2 : source.peekCount;
+    final upcoming = <NightCard>[];
+    for (var i = 1; i <= count; i++) {
+      final index = state.nightDeck.length - i;
+      if (index < 0) break;
+      upcoming.add(state.nightDeck[index]);
+    }
+    state.peekedNights
+      ..clear()
+      ..addAll(upcoming);
+    if (upcoming.isEmpty) {
+      return '${source.name}: ${player.name} looks ahead, but no nights remain.';
+    }
+    final titles = upcoming.map((night) => night.title).join(', then ');
+    return '${source.name}: ${player.name} sees the next nights — $titles.';
+  }
+
+  String _resolveForageMadness(Player player, GameCard source) {
+    final state = _requireState();
+    if (state.madnessPile.isEmpty) {
+      state.madnessPile.addAll(Decks.madnessDeck(_random, _nextId));
+    }
+    if (state.madnessPile.isEmpty) {
+      return '${source.name}: ${player.name} should draw madness, but the pile is empty.';
+    }
+    final card = state.madnessPile.removeLast();
+    switch (card.kind) {
+      case MadnessKind.heartLoss:
+        _damage(player, 1, cause: card.title);
+        return '${source.name}: ${player.name} draws ${card.title} and loses 1♥.';
+      case MadnessKind.roleplay:
+        state.log('${player.name} must: ${card.description}');
+        return '${source.name}: ${player.name} draws ${card.title}: ${card.description}';
     }
   }
 
@@ -1011,13 +1288,12 @@ class GameEngine {
     _spend(CardKind.fiber, item.fiber);
   }
 
+  /// Spend from camp first, then any living survivor's hand.
   void _spend(CardKind kind, int amount) {
     if (amount <= 0) return;
     final state = _requireState();
     var remaining = amount;
     remaining -= _removeKind(state.campStash, kind, remaining);
-    if (remaining <= 0) return;
-    remaining -= _removeKind(state.currentPlayer.hand, kind, remaining);
     if (remaining <= 0) return;
     for (final player in state.alivePlayers) {
       remaining -= _removeKind(player.hand, kind, remaining);
@@ -1037,10 +1313,12 @@ class GameEngine {
   }
 
   void _removeBones() {
-    final state = _requireState();
-    state.campStash.removeWhere((card) => card.kind == CardKind.bonePile);
-    for (final player in state.players) {
-      player.hand.removeWhere((card) => card.kind == CardKind.bonePile);
+    var remaining = 4;
+    remaining -= _removeKind(_requireState().campStash, CardKind.bonePile, remaining);
+    if (remaining <= 0) return;
+    for (final player in _requireState().players) {
+      remaining -= _removeKind(player.hand, CardKind.bonePile, remaining);
+      if (remaining <= 0) return;
     }
   }
 
@@ -1139,8 +1417,11 @@ class GameEngine {
     state.pendingNoFireTomorrow = false;
     state.activeNight = null;
     state.foragedThisRound.clear();
+    state.freshForageIds.clear();
     for (final player in state.players) {
       player.drewMadnessThisNight = false;
+      player.armsLocked = false;
+      player.immobilized = false;
     }
     _resolveDawnDeaths(state);
     if (state.phase == GamePhase.gameOver) return;

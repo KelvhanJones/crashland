@@ -17,10 +17,16 @@ class HomeScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const Spacer(),
-              Text(
-                '🏕️',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.displayMedium,
+              Center(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(28),
+                  child: Image.asset(
+                    'assets/icon/app_icon.png',
+                    width: 112,
+                    height: 112,
+                    filterQuality: FilterQuality.medium,
+                  ),
+                ),
               ),
               const SizedBox(height: 16),
               Text(

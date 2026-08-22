@@ -1,9 +1,20 @@
 import 'card_kind.dart';
 
 enum UhOhEffect {
-  injury,
-  spoiled,
-  beast,
+  /// Drawn and discarded; nothing else happens.
+  none,
+  /// Draw a madness card and follow it immediately.
+  drawMadness,
+  /// Hearts drop to 1 if the survivor had more than 1.
+  setHeartsToOne,
+  /// Lose [GameCard.uhOhDamage] hearts. May be [GameCard.blockable].
+  loseHearts,
+  /// Cannot use hands (cards, craft, wreckage) until the next dawn.
+  lockArms,
+  /// Cannot move or speak (no camp/gear, skip leftover forage) until the next dawn.
+  immobilize,
+  /// Reveal the next [GameCard.peekCount] night cards; they stay in the deck.
+  peekNights,
 }
 
 enum WreckageAbility {
@@ -72,19 +83,29 @@ class GameCard {
     required this.id,
     required this.name,
     required this.kind,
+    this.flavor = '',
+    this.effectBlurb = '',
     this.healValue = 0,
     this.fullHeal = false,
     this.uhOh,
+    this.uhOhDamage = 0,
+    this.blockable = false,
+    this.peekCount = 0,
     this.boneIndex,
     this.wreckage,
   });
 
   final String id;
   final String name;
+  final String flavor;
+  final String effectBlurb;
   final CardKind kind;
   final int healValue;
   final bool fullHeal;
   final UhOhEffect? uhOh;
+  final int uhOhDamage;
+  final bool blockable;
+  final int peekCount;
   final int? boneIndex;
   final WreckageAbility? wreckage;
 
@@ -95,4 +116,10 @@ class GameCard {
 
   bool get isWreckageHeal =>
       wreckage != null && (wreckage!.isHeal || fullHeal || healValue > 0);
+
+  /// Forage copies of the same card (wood, stone, food, bones) share a stack.
+  bool get canStack =>
+      wreckage == null && uhOh == null && (isFood || isResource || kind == CardKind.bonePile);
+
+  String get stackKey => canStack ? '${kind.name}|$name|$healValue' : id;
 }

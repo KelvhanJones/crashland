@@ -3,24 +3,39 @@
 class DeckComposition {
   DeckComposition._();
 
-  static const int forage = 103;
+  static const int forage = 109;
   static const int night = 41; // includes 1 Rescue
   static const int madness = 21;
-  static const int craftAndGuides = 20;
+  static const int craftAndGuides = 16;
   static const int wreckage = 9;
 
   /// Forage breakdown (must sum to [forage]).
-  /// Counts are placeholders until the forage list is finalized.
-  static const int wildBerries = 19;
-  static const int creekFish = 11;
-  static const int freshKill = 4;
-  static const int fallenBranch = 19;
-  static const int riverStone = 16;
-  static const int vineCord = 14;
-  static const int bonePieces = 4;
-  static const int unstableSlope = 6;
-  static const int spoiledCache = 5;
-  static const int stalkingBeast = 5;
+  static const int wood = 22;
+  static const int stone = 12;
+  static const int fiber = 12;
+  static const int bonePile = 9;
+  static const int seagull = 1;
+  static const int moose = 1;
+  static const int waspNest = 1;
+  static const int poisonousMushrooms = 1;
+  static const int paralysisMushroom = 1;
+  static const int neurotoxicMushroom = 1;
+  static const int magicalMushrooms = 1;
+  static const int psychotropicMushrooms = 1;
+  static const int grub = 4;
+  static const int wildOnion = 4;
+  static const int wildParsnip = 3;
+  static const int berries = 4;
+  static const int currants = 4;
+  static const int squirrel = 3;
+  static const int wildPlum = 3;
+  static const int minnows = 3;
+  static const int chanterelle = 4;
+  static const int pineNuts = 5;
+  static const int honeycomb = 2;
+  static const int trout = 2;
+  static const int rabbit = 2;
+  static const int dandelion = 3;
 
   /// Night threats before Rescue (must be [night] - 1).
   static const int nightThreats = night - 1; // 40
@@ -29,11 +44,11 @@ class DeckComposition {
   static const int madnessHeartLoss = 8;
   static const int madnessRoleplay = madness - madnessHeartLoss;
 
-  /// Craft & guide stock (must sum to [craftAndGuides]).
-  /// Shelter / basket / spear counts are concurrent: used cards return to the deck.
-  static const int craftFire = 5;
+  /// Spear / basket / shelter are concurrent deck cards and return when used.
+  /// Campfire is a single camp action (1 wood), not a craft-deck card.
+  static const int craftFire = 1;
   static const int craftSpear = 6;
-  static const int craftBasket = 5;
+  static const int craftBasket = 6;
   static const int craftShelter = 2;
   static const int craftGuides = 2;
 

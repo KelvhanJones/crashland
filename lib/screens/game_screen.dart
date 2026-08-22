@@ -32,11 +32,12 @@ class GameScreen extends StatefulWidget {
 
 class _GameScreenState extends State<GameScreen> {
   String? _selectedCardId;
-  String? _tradeTargetId;
+  final _healShares = <String, int>{};
+  CraftItem? _pendingCraft;
+  final _shelterPicks = <String>{};
   final _spearUsers = <String>{};
   final _activeWreckageIds = <String>{};
   final _wreckageTargets = <String, List<String?>>{};
-  final _shelterDraftIds = <String>{};
   /// Raccoons: true = discard food, false = lose 1♥
   final _raccoonDiscardFood = <String, bool>{};
 
@@ -250,15 +251,66 @@ class _GameScreenState extends State<GameScreen> {
                   if (state.isSheltered(player.id)) player.id,
               },
               caveShelter: state.caveShelter,
-              hideOtherHands: _networked || state.phase == GamePhase.dayForage,
-              onCardTap: (id) => setState(() {
-                _selectedCardId = _selectedCardId == id ? null : id;
-              }),
+              hiddenCardIds: state.phase == GamePhase.dayForage
+                  ? state.freshForageIds
+                  : const {},
+              revealPlayerId: _me ?? current.id,
+              fireLit: state.fireLit,
+              healShares: _assignableHealCard(state) == null
+                  ? const <String, int>{}
+                  : Map<String, int>.from(_healShares),
+              canAssignHearts: _assignableHealCard(state) != null,
+              pickedIds: _pickedPlayerIds(state),
+              targeting: _playerTapHint(state) != null,
+              tapHint: _playerTapHint(state),
+              onPlayerTap: _tapPlayer,
+              onPlayerLongPress: _longPressPlayer,
+              onCardTap: _selectCard,
+            ),
+            _CraftBoxes(
+              state: state,
+              enabled: state.phase == GamePhase.dayCamp,
+              canCraft: (item) => engine.canCraft(item, playerId: _me),
+              buttonLabel: (item, canCraft) => _craftButtonLabel(
+                state,
+                item,
+                canCraft,
+              ),
+              pendingItem: _pendingCraft,
+              shelterPickCount: _shelterPicks.length,
+              onCraft: _craftItem,
+              onStartPick: _startCraftPick,
             ),
             Expanded(
               child: ListView(
                 padding: const EdgeInsets.all(16),
                 children: [
+                  if (state.peekedNights.isNotEmpty) ...[
+                    Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Looking ahead',
+                              style: Theme.of(context).textTheme.titleLarge,
+                            ),
+                            const SizedBox(height: 8),
+                            for (final night in state.peekedNights) ...[
+                              Text(
+                                night.title,
+                                style: Theme.of(context).textTheme.titleMedium,
+                              ),
+                              Text(night.description),
+                              const SizedBox(height: 8),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
                   if (state.activeNight != null) ...[
                     Card(
                       child: Padding(
@@ -287,121 +339,11 @@ class _GameScreenState extends State<GameScreen> {
                       '${state.canAssembleBones ? ' · bone circle ready' : ''}',
                     ),
                     const SizedBox(height: 12),
-                    if (state.craftRemaining(CraftItem.shelter) > 0) ...[
-                      Text(
-                        'Shelter occupants (pick 1–3, then craft)',
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                      ...state.alivePlayers.map(
-                        (player) => CheckboxListTile(
-                          contentPadding: EdgeInsets.zero,
-                          title: Text(player.name),
-                          value: _shelterDraftIds.contains(player.id),
-                          onChanged: (value) => setState(() {
-                            if (value == true) {
-                              if (_shelterDraftIds.length >= 3) return;
-                              _shelterDraftIds.add(player.id);
-                            } else {
-                              _shelterDraftIds.remove(player.id);
-                            }
-                          }),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                    ],
-                    ...CraftItem.values.map((item) {
-                      final alreadyLit =
-                          item == CraftItem.fire && state.fireLit;
-                      final fireBlocked = item == CraftItem.fire &&
-                          state.fireBlockedNextNight;
-                      final remaining = state.craftRemaining(item);
-                      final shelterReady = item != CraftItem.shelter ||
-                          (_shelterDraftIds.isNotEmpty &&
-                              _shelterDraftIds.length <= 3);
-                      final canCraft = !alreadyLit &&
-                          !fireBlocked &&
-                          shelterReady &&
-                          engine.canCraft(item, playerId: _me);
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    '${item.label} ($remaining in deck)',
-                                    style:
-                                        Theme.of(context).textTheme.titleMedium,
-                                  ),
-                                  Text(item.description),
-                                  Text(
-                                    item.cost.entries
-                                        .map((e) => '${e.value} ${e.key}')
-                                        .join(' · '),
-                                    style:
-                                        Theme.of(context).textTheme.bodyMedium,
-                                  ),
-                                ],
-                              ),
-                            ),
-                            OutlinedButton(
-                              onPressed: canCraft
-                                  ? () {
-                                      _run(
-                                        () => engine.craft(
-                                          item,
-                                          shelterOccupantIds:
-                                              item == CraftItem.shelter
-                                                  ? Set.of(_shelterDraftIds)
-                                                  : const {},
-                                          playerId: _me,
-                                        ),
-                                        {
-                                          'type': 'craft',
-                                          'item': item.name,
-                                          'playerId': _me,
-                                          'shelterOccupantIds':
-                                              item == CraftItem.shelter
-                                                  ? _shelterDraftIds.toList()
-                                                  : const <String>[],
-                                        },
-                                      );
-                                      if (item == CraftItem.shelter) {
-                                        _shelterDraftIds.clear();
-                                      }
-                                      _refresh();
-                                    }
-                                  : null,
-                              child: Text(
-                                alreadyLit
-                                    ? 'Already lit'
-                                    : fireBlocked
-                                        ? 'Blocked'
-                                        : remaining <= 0
-                                            ? 'All in play'
-                                            : item == CraftItem.shelter &&
-                                                    _shelterDraftIds.isEmpty
-                                                ? 'Pick occupants'
-                                                : _craftButtonLabel(
-                                                    state,
-                                                    item,
-                                                    canCraft,
-                                                    playerId: _me,
-                                                  ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    }),
                     if (state.canAssembleBones)
                       FilledButton(
                         onPressed: () => _run(
-                          engine.assembleBoneCircle,
-                          {'type': 'assembleBones'},
+                          () => engine.assembleBoneCircle(playerId: _me),
+                          {'type': 'assembleBones', 'playerId': _me},
                         ),
                         child: const Text('Assemble bone circle'),
                       ),
@@ -413,8 +355,8 @@ class _GameScreenState extends State<GameScreen> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Wreckage owners choose who is protected. '
-                      'Tap food or heal wreckage in a hand to use it before resolving.',
+                      'Tap a wreckage card, then tap who it protects. '
+                      'Tap food to share hearts. Tap a spear-holder to defend.',
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                     if (_networked && (session?.isHost ?? false))
@@ -425,148 +367,49 @@ class _GameScreenState extends State<GameScreen> {
                           style: Theme.of(context).textTheme.bodySmall,
                         ),
                       ),
-                    if (state.activeNight?.dealsAnimalHeartDamage ?? false)
-                      ...state.alivePlayers
-                          .where(
-                            (player) =>
-                                player.spearCount > 0 &&
-                                (_me == null || player.id == _me),
-                          )
-                          .map(
-                            (player) => CheckboxListTile(
-                              contentPadding: EdgeInsets.zero,
-                              title: Text('${player.name}: use Spear on self'),
-                              value: _spearUsers.contains(player.id),
-                              onChanged: (value) => setState(() {
-                                if (value == true) {
-                                  _spearUsers.add(player.id);
-                                } else {
-                                  _spearUsers.remove(player.id);
-                                }
-                              }),
-                            ),
-                          ),
+                    if (_spearUsers.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      for (final id in _spearUsers)
+                        Text(
+                          '✓ ${state.players.firstWhere((player) => player.id == id).name} uses a spear',
+                        ),
+                    ],
                     if (state.activeNight?.raccoonChoice == true &&
                         !(state.fireLit &&
                             (state.activeNight?.fireCancels ?? false))) ...[
                       const SizedBox(height: 8),
                       Text(
-                        'Raccoons — each survivor chooses',
+                        'Raccoons — tap a survivor to discard food instead of 1♥',
                         style: Theme.of(context).textTheme.titleMedium,
                       ),
-                      ...state.alivePlayers.map((player) {
-                        final discard = _raccoonDiscardFood[player.id] ?? false;
-                        final hasFood = player.hand.any((c) => c.isFood);
-                        return CheckboxListTile(
-                          contentPadding: EdgeInsets.zero,
-                          title: Text(
-                            discard
-                                ? '${player.name}: discard 1 food'
-                                : '${player.name}: lose 1♥',
-                          ),
-                          subtitle: Text(
-                            hasFood
-                                ? 'Check to discard food instead of a heart'
-                                : 'No food — will lose 1♥ either way',
-                          ),
-                          value: discard,
-                          onChanged: hasFood
-                              ? (value) => setState(() {
-                                    _raccoonDiscardFood[player.id] =
-                                        value ?? false;
-                                  })
-                              : null,
-                        );
-                      }),
+                      for (final player in state.alivePlayers)
+                        Text(
+                          (_raccoonDiscardFood[player.id] ?? false)
+                              ? '✓ ${player.name} discards food'
+                              : '${player.name} will lose 1♥',
+                        ),
                     ],
-                    ..._wreckageForNight(state)
-                        .where(
-                          (entry) => _me == null || entry.owner.id == _me,
-                        )
-                        .map((entry) {
+                    ..._wreckageForNight(state).map((entry) {
                       final card = entry.card;
                       final ability = card.wreckage!;
                       final active = _activeWreckageIds.contains(card.id);
-                      final slotsNeeded = ability.blocksAnimalCampWide
-                          ? 0
-                          : ability.blocksWeather
-                              ? ability.weatherTargetCount
-                              : 1;
-                      final slots = _wreckageTargets[card.id] ??
-                          List<String?>.filled(slotsNeeded, null);
-                      return Material(
-                        color: Colors.transparent,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            CheckboxListTile(
-                              contentPadding: EdgeInsets.zero,
-                              title: Text(
-                                '${entry.owner.name}\'s ${card.name}'
-                                '${ability.reusable ? ' (reusable)' : ''}',
-                              ),
-                              subtitle: Text(ability.blurb),
-                              value: active,
-                              onChanged: (value) => setState(() {
-                                if (value == true) {
-                                  _activeWreckageIds.add(card.id);
-                                  _wreckageTargets.putIfAbsent(
-                                    card.id,
-                                    () => List<String?>.filled(slotsNeeded, null),
-                                  );
-                                } else {
-                                  _activeWreckageIds.remove(card.id);
-                                }
-                              }),
-                            ),
-                            if (active && ability.blocksAnimalCampWide)
-                              const Padding(
-                                padding: EdgeInsets.only(left: 16, bottom: 8),
-                                child: Text('Protects the whole camp.'),
-                              ),
-                            if (active && slotsNeeded > 0)
-                              ...List.generate(slotsNeeded, (index) {
-                                return Padding(
-                                  padding: const EdgeInsets.only(
-                                    left: 8,
-                                    bottom: 8,
-                                  ),
-                                  child: DropdownButtonFormField<String>(
-                                    key: ValueKey(
-                                      '${card.id}-$index-${slots[index]}',
-                                    ),
-                                    initialValue: state.alivePlayers.any(
-                                      (p) => p.id == slots[index],
-                                    )
-                                        ? slots[index]
-                                        : null,
-                                    decoration: InputDecoration(
-                                      labelText: slotsNeeded > 1
-                                          ? 'Protect survivor ${index + 1}'
-                                          : 'Protect survivor',
-                                    ),
-                                    items: state.alivePlayers
-                                        .map(
-                                          (p) => DropdownMenuItem(
-                                            value: p.id,
-                                            child: Text(p.name),
-                                          ),
-                                        )
-                                        .toList(),
-                                    onChanged: (id) => setState(() {
-                                      final list = _wreckageTargets.putIfAbsent(
-                                        card.id,
-                                        () => List<String?>.filled(
-                                          slotsNeeded,
-                                          null,
-                                        ),
-                                      );
-                                      list[index] = id;
-                                    }),
-                                  ),
-                                );
-                              }),
-                          ],
+                      if (!active) return const SizedBox.shrink();
+                      final names = (_wreckageTargets[card.id] ?? const [])
+                          .whereType<String>()
+                          .map(
+                            (id) => state.players
+                                .firstWhere((player) => player.id == id)
+                                .name,
+                          )
+                          .join(', ');
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 6),
+                        child: Text(
+                          ability.blocksAnimalCampWide
+                              ? '✓ ${card.name} covers the camp'
+                              : names.isEmpty
+                                  ? '${card.name} — tap who to protect'
+                                  : '✓ ${card.name} → $names',
                         ),
                       );
                     }),
@@ -581,21 +424,454 @@ class _GameScreenState extends State<GameScreen> {
     );
   }
 
+  void _craftItem(
+    CraftItem item, {
+    Set<String> occupants = const {},
+    String? recipientId,
+  }) {
+    _run(
+      () => engine.craft(
+        item,
+        shelterOccupantIds: occupants,
+        playerId: _me,
+        recipientId: recipientId,
+      ),
+      {
+        'type': 'craft',
+        'item': item.name,
+        'playerId': _me,
+        'recipientId': recipientId,
+        'shelterOccupantIds': occupants.toList(),
+      },
+    );
+  }
+
+  GameCard? _assignableHealCard(GameState state) {
+    if (_selectedCardId == null) return null;
+    if (state.phase != GamePhase.dayCamp && state.phase != GamePhase.night) {
+      return null;
+    }
+    final card = _card(_selectedCardId!);
+    if (card == null) return null;
+    if (card.isFood && card.healValue > 0 && !card.fullHeal) return card;
+    if (card.wreckage == WreckageAbility.vodka) return card;
+    return null;
+  }
+
+  GameCard? _dumpHealCard(GameState state) {
+    if (_selectedCardId == null) return null;
+    if (state.phase != GamePhase.dayCamp && state.phase != GamePhase.night) {
+      return null;
+    }
+    final card = _card(_selectedCardId!);
+    if (card == null || _assignableHealCard(state) != null) return null;
+    if (card.wreckage == WreckageAbility.chocolate) return card;
+    if (card.wreckage == WreckageAbility.adrenaline || card.fullHeal) {
+      return card;
+    }
+    return null;
+  }
+
+  GameCard? _nightProtectCard(GameState state) {
+    if (state.phase != GamePhase.night || _selectedCardId == null) return null;
+    final card = _card(_selectedCardId!);
+    if (card?.wreckage == null || card!.isWreckageHeal) return null;
+    final night = state.activeNight;
+    if (night == null) return null;
+    final ability = card.wreckage!;
+    final useful = switch (night.eventType) {
+      NightEventType.weather => ability.blocksWeather,
+      NightEventType.animal =>
+        night.dealsAnimalHeartDamage &&
+            (ability.blocksAnimalOrHuman || ability.blocksAnimalCampWide),
+      NightEventType.none || NightEventType.rescue => false,
+    };
+    return useful ? card : null;
+  }
+
+  int _protectSlotsNeeded(GameCard card) {
+    final ability = card.wreckage!;
+    if (ability.blocksAnimalCampWide) return 0;
+    if (ability.blocksWeather) return ability.weatherTargetCount;
+    return 1;
+  }
+
+  int _healAssigned() =>
+      _healShares.values.fold<int>(0, (sum, n) => sum + n);
+
+  int _healRemaining(GameState state) {
+    final card = _assignableHealCard(state);
+    if (card == null) return 0;
+    return card.healValue - _healAssigned();
+  }
+
+  bool _raccoonTapOpen(GameState state) {
+    final night = state.activeNight;
+    return state.phase == GamePhase.night &&
+        night?.raccoonChoice == true &&
+        !(state.fireLit && (night?.fireCancels ?? false));
+  }
+
+  Set<String> _pickedPlayerIds(GameState state) {
+    return {
+      ..._healShares.keys.where((id) => (_healShares[id] ?? 0) > 0),
+      ..._shelterPicks,
+      ..._spearUsers,
+      for (final player in state.alivePlayers)
+        if (_raccoonDiscardFood[player.id] == true) player.id,
+      if (_selectedCardId != null)
+        ...(_wreckageTargets[_selectedCardId] ?? const [])
+            .whereType<String>(),
+    };
+  }
+
+  String? _playerTapHint(GameState state) {
+    final heal = _assignableHealCard(state);
+    if (heal != null) {
+      final left = _healRemaining(state);
+      return left > 0
+          ? 'Tap a survivor to give 1♥ ($left left)'
+          : 'Tap a survivor to give 1♥';
+    }
+    final dump = _dumpHealCard(state);
+    if (dump != null) {
+      return 'Tap who gets ${dump.name}';
+    }
+    final protect = _nightProtectCard(state);
+    if (protect != null) {
+      final needed = _protectSlotsNeeded(protect);
+      if (needed == 0) return '${protect.name} covers the whole camp';
+      final filled = (_wreckageTargets[protect.id] ?? const [])
+          .whereType<String>()
+          .length;
+      final left = (needed - filled).clamp(0, needed);
+      return left > 0
+          ? 'Tap who ${protect.name} protects ($left left)'
+          : 'Tap a protected survivor to remove them';
+    }
+    if (_pendingCraft == CraftItem.spear) return 'Tap who gets the Spear';
+    if (_pendingCraft == CraftItem.basket) return 'Tap who gets the Basket';
+    if (_pendingCraft == CraftItem.shelter) {
+      return 'Tap who the shelter covers (${_shelterPicks.length}/3)';
+    }
+    if (_selectedCardId != null &&
+        state.phase == GamePhase.dayCamp &&
+        _ownerOf(_selectedCardId!) != null) {
+      final card = _card(_selectedCardId!);
+      if (card != null && card.kind != CardKind.bonePile) {
+        return 'Tap who receives ${card.name}';
+      }
+    }
+    if (state.phase == GamePhase.night &&
+        (state.activeNight?.dealsAnimalHeartDamage ?? false)) {
+      return 'Tap a survivor with a spear to defend';
+    }
+    if (_raccoonTapOpen(state)) {
+      return 'Tap a survivor to discard food instead of 1♥';
+    }
+    return null;
+  }
+
+  void _selectCard(String id) {
+    final state = engine.state;
+    final deselect = _selectedCardId == id;
+    setState(() {
+      _selectedCardId = deselect ? null : id;
+      _healShares.clear();
+      _pendingCraft = null;
+      _shelterPicks.clear();
+      if (!deselect && state != null) {
+        final card = _card(id);
+        if (card != null && _nightProtectCard(state) != null) {
+          final needed = _protectSlotsNeeded(card);
+          _activeWreckageIds.add(id);
+          _wreckageTargets.putIfAbsent(
+            id,
+            () => List<String?>.filled(needed, null),
+          );
+        }
+      } else if (deselect) {
+        final card = _card(id);
+        if (card?.wreckage?.blocksAnimalCampWide ?? false) {
+          _activeWreckageIds.remove(id);
+        }
+      }
+    });
+  }
+
+  void _startCraftPick(CraftItem item) {
+    if (_pendingCraft == item) {
+      if (item == CraftItem.shelter && _shelterPicks.isNotEmpty) {
+        _craftItem(item, occupants: Set.of(_shelterPicks));
+        setState(() {
+          _pendingCraft = null;
+          _shelterPicks.clear();
+        });
+        return;
+      }
+      setState(() {
+        _pendingCraft = null;
+        _shelterPicks.clear();
+      });
+      return;
+    }
+    setState(() {
+      _pendingCraft = item;
+      _shelterPicks.clear();
+      _selectedCardId = null;
+      _healShares.clear();
+    });
+  }
+
+  Player? _living(String playerId) {
+    final matches = engine.state?.players.where((item) => item.id == playerId);
+    if (matches == null || matches.isEmpty) return null;
+    final player = matches.first;
+    return player.isAlive ? player : null;
+  }
+
+  void _tapPlayer(String playerId) {
+    final state = engine.state;
+    if (state == null) return;
+    final player = _living(playerId);
+    if (player == null) return;
+
+    if (_assignableHealCard(state) != null) {
+      _changeHealShare(player, 1);
+      return;
+    }
+    if (_dumpHealCard(state) != null) {
+      _useSelectedHealOn(player.id);
+      return;
+    }
+    final protect = _nightProtectCard(state);
+    if (protect != null) {
+      _toggleProtectTarget(protect, player.id);
+      return;
+    }
+    if (_pendingCraft == CraftItem.spear || _pendingCraft == CraftItem.basket) {
+      if (_pendingCraft == CraftItem.basket && player.hasBasket) return;
+      final item = _pendingCraft!;
+      _pendingCraft = null;
+      _craftItem(item, recipientId: player.id);
+      return;
+    }
+    if (_pendingCraft == CraftItem.shelter) {
+      setState(() {
+        if (_shelterPicks.contains(player.id)) {
+          _shelterPicks.remove(player.id);
+        } else if (_shelterPicks.length < 3) {
+          _shelterPicks.add(player.id);
+        }
+      });
+      if (_shelterPicks.length == 3) {
+        _craftItem(CraftItem.shelter, occupants: Set.of(_shelterPicks));
+        setState(() {
+          _pendingCraft = null;
+          _shelterPicks.clear();
+        });
+      }
+      return;
+    }
+    if (_selectedCardId != null &&
+        state.phase == GamePhase.dayCamp &&
+        _ownerOf(_selectedCardId!) != null &&
+        _ownerOf(_selectedCardId!)!.id != player.id) {
+      _giveSelectedTo(player.id);
+      return;
+    }
+    if (state.phase == GamePhase.night &&
+        (state.activeNight?.dealsAnimalHeartDamage ?? false) &&
+        player.spearCount > 0 &&
+        (_me == null || player.id == _me)) {
+      setState(() {
+        if (_spearUsers.contains(player.id)) {
+          _spearUsers.remove(player.id);
+        } else {
+          _spearUsers.add(player.id);
+        }
+      });
+      return;
+    }
+    if (_raccoonTapOpen(state) &&
+        player.hand.any((card) => card.isFood) &&
+        (_me == null || player.id == _me)) {
+      setState(() {
+        _raccoonDiscardFood[player.id] =
+            !(_raccoonDiscardFood[player.id] ?? false);
+      });
+    }
+  }
+
+  void _longPressPlayer(String playerId) {
+    final state = engine.state;
+    if (state == null) return;
+    final player = _living(playerId);
+    if (player == null) return;
+    if (_assignableHealCard(state) != null) {
+      _changeHealShare(player, -1);
+    }
+  }
+
+  void _changeHealShare(Player player, int delta) {
+    final state = engine.state;
+    if (state == null) return;
+    final card = _assignableHealCard(state);
+    if (card == null) return;
+    final shares = Map<String, int>.from(_healShares);
+    final pending = shares[player.id] ?? 0;
+    final assigned = shares.values.fold<int>(0, (sum, n) => sum + n);
+    final remaining = card.healValue - assigned;
+
+    if (delta > 0) {
+      if (remaining <= 0) return;
+      if (player.hearts + pending >= player.maxHearts) return;
+      shares[player.id] = pending + 1;
+    } else {
+      if (pending <= 0) return;
+      if (pending == 1) {
+        shares.remove(player.id);
+      } else {
+        shares[player.id] = pending - 1;
+      }
+    }
+
+    _healShares
+      ..clear()
+      ..addAll(shares);
+    if (_healAssigned() == card.healValue) {
+      _commitHealShares();
+      return;
+    }
+    setState(() {});
+  }
+
+  void _toggleProtectTarget(GameCard card, String playerId) {
+    final needed = _protectSlotsNeeded(card);
+    if (needed <= 0) return;
+    setState(() {
+      _activeWreckageIds.add(card.id);
+      final slots = _wreckageTargets.putIfAbsent(
+        card.id,
+        () => List<String?>.filled(needed, null),
+      );
+      final existing = slots.indexOf(playerId);
+      if (existing != -1) {
+        slots[existing] = null;
+        return;
+      }
+      final empty = slots.indexWhere((id) => id == null);
+      if (empty != -1) {
+        slots[empty] = playerId;
+      } else {
+        slots[needed - 1] = playerId;
+      }
+    });
+  }
+
+  void _useSelectedHealOn(String targetId) {
+    final state = engine.state;
+    if (state == null || _selectedCardId == null) return;
+    final cardId = _selectedCardId!;
+    final owner = _ownerOf(cardId);
+    if (_networked && _me != null && owner != null && owner.id != _me) return;
+    final actorId = owner?.id ?? _me ?? state.currentPlayer.id;
+    final card = _card(cardId);
+    _run(
+      () => engine.useHealCard(
+        ownerId: actorId,
+        cardId: cardId,
+        targetId: targetId,
+        hearts: card?.healValue,
+      ),
+      {
+        'type': 'heal',
+        'ownerId': actorId,
+        'cardId': cardId,
+        'targetId': targetId,
+        'hearts': card?.healValue,
+      },
+    );
+    setState(() {
+      _selectedCardId = null;
+      _healShares.clear();
+    });
+  }
+
+  void _giveSelectedTo(String toId) {
+    final owner = _ownerOf(_selectedCardId!);
+    if (owner == null) return;
+    if (_networked && _me != null && owner.id != _me) return;
+    final cardId = _selectedCardId!;
+    _run(
+      () => engine.tradeCard(
+        fromPlayerId: owner.id,
+        toPlayerId: toId,
+        cardId: cardId,
+      ),
+      {
+        'type': 'trade',
+        'fromId': owner.id,
+        'toId': toId,
+        'cardId': cardId,
+      },
+    );
+    setState(() {
+      _selectedCardId = null;
+      _healShares.clear();
+    });
+  }
+
+  void _commitHealShares() {
+    final state = engine.state;
+    if (state == null || _selectedCardId == null) return;
+    final shares = {
+      for (final entry in _healShares.entries)
+        if (entry.value > 0) entry.key: entry.value,
+    };
+    if (shares.isEmpty) return;
+    final owner = _ownerOf(_selectedCardId!);
+    final actorId = owner?.id ?? _me ?? state.currentPlayer.id;
+    final cardId = _selectedCardId!;
+    var applied = true;
+    if (_networked) {
+      session!.dispatch({
+        'type': 'splitFood',
+        'ownerId': actorId,
+        'cardId': cardId,
+        'shares': [
+          for (final entry in shares.entries)
+            {'playerId': entry.key, 'hearts': entry.value},
+        ],
+      });
+    } else {
+      applied = engine.splitHeal(
+        ownerId: actorId,
+        cardId: cardId,
+        shares: shares,
+      );
+    }
+    setState(() {
+      if (!applied) return;
+      _selectedCardId = null;
+      _healShares.clear();
+    });
+  }
+
   String _craftButtonLabel(
     GameState state,
     CraftItem item,
-    bool canCraft, {
-    String? playerId,
-  }) {
-    if (item == CraftItem.fire && state.fireLit) return 'Already lit';
-    if (item == CraftItem.fire && state.fireBlockedNextNight) {
-      return 'Blocked';
+    bool canCraft,
+  ) {
+    if (item == CraftItem.fire) {
+      if (state.fireLit) return 'Already lit';
+      if (state.fireBlockedNextNight) return 'Blocked';
+      if (state.phase != GamePhase.dayCamp) return 'At camp';
+      return canCraft ? 'Light fire' : 'Can\'t light';
     }
     if (item == CraftItem.basket &&
-        (playerId == null
-            ? state.currentPlayer.hasBasket
-            : state.players.any((p) => p.id == playerId && p.hasBasket))) {
-      return 'Owned';
+        state.alivePlayers.every((player) => player.hasBasket)) {
+      return 'All owned';
     }
     if (state.craftRemaining(item) <= 0) return 'All in play';
     return canCraft ? 'Craft' : 'Need more';
@@ -621,77 +897,32 @@ class _GameScreenState extends State<GameScreen> {
               owner: _ownerOf(_selectedCardId!),
               inCamp: state.campStash.any((card) => card.id == _selectedCardId),
               current: current,
-              players: state.alivePlayers,
               nightUse: state.phase == GamePhase.night,
-              tradeTargetId: _tradeTargetId,
-              onTradeTargetChanged: (id) => setState(() => _tradeTargetId = id),
-              onEat: (hearts) {
-                final owner = _ownerOf(_selectedCardId!);
-                if (owner == null) return;
-                if (_networked && _me != null && owner.id != _me) return;
-                final targetId = _tradeTargetId ?? owner.id;
+              tapHint: _playerTapHint(state),
+              canLightFire: state.phase == GamePhase.dayCamp &&
+                  engine.canCraft(CraftItem.fire, playerId: _me),
+              lightFireLabel: _craftButtonLabel(
+                state,
+                CraftItem.fire,
+                engine.canCraft(CraftItem.fire, playerId: _me),
+              ),
+              onLightFire: () {
                 final cardId = _selectedCardId!;
                 _run(
-                  () => engine.useHealCard(
-                    ownerId: owner.id,
-                    cardId: cardId,
-                    targetId: targetId,
-                    hearts: hearts,
-                  ),
+                  () => engine.lightFire(playerId: _me, woodCardId: cardId),
                   {
-                    'type': 'heal',
-                    'ownerId': owner.id,
+                    'type': 'lightFire',
+                    'playerId': _me,
                     'cardId': cardId,
-                    'targetId': targetId,
-                    'hearts': hearts,
                   },
                 );
                 setState(() {
                   _selectedCardId = null;
-                  _tradeTargetId = null;
+                  _healShares.clear();
                 });
               },
-              onSplit: () {
-                final owner = _ownerOf(_selectedCardId!);
-                if (owner == null || _tradeTargetId == null) return;
-                if (_networked && _me != null && owner.id != _me) return;
-                final card = _card(_selectedCardId!);
-                final cardId = _selectedCardId!;
-                final otherId = _tradeTargetId!;
-                if (card?.wreckage == WreckageAbility.vodka) {
-                  _run(
-                    () => engine.shareHealCard(
-                      ownerId: owner.id,
-                      cardId: cardId,
-                      otherId: otherId,
-                    ),
-                    {
-                      'type': 'shareHeal',
-                      'ownerId': owner.id,
-                      'cardId': cardId,
-                      'otherId': otherId,
-                    },
-                  );
-                } else {
-                  _run(
-                    () => engine.splitFood(
-                      fromPlayerId: owner.id,
-                      toPlayerId: otherId,
-                      cardId: cardId,
-                    ),
-                    {
-                      'type': 'splitFood',
-                      'fromId': owner.id,
-                      'toId': otherId,
-                      'cardId': cardId,
-                    },
-                  );
-                }
-                setState(() {
-                  _selectedCardId = null;
-                  _tradeTargetId = null;
-                });
-              },
+              onGiveHearts: _healAssigned() > 0 ? _commitHealShares : null,
+              heartsPicked: _healAssigned(),
               onToCamp: () {
                 final owner = _ownerOf(_selectedCardId!);
                 if (owner == null) return;
@@ -705,7 +936,10 @@ class _GameScreenState extends State<GameScreen> {
                     'cardId': cardId,
                   },
                 );
-                setState(() => _selectedCardId = null);
+                setState(() {
+                  _selectedCardId = null;
+                  _healShares.clear();
+                });
               },
               onFromCamp: () {
                 final takerId = _me ?? current.id;
@@ -718,38 +952,30 @@ class _GameScreenState extends State<GameScreen> {
                     'cardId': cardId,
                   },
                 );
-                setState(() => _selectedCardId = null);
-              },
-              onTrade: () {
-                final owner = _ownerOf(_selectedCardId!);
-                if (owner == null || _tradeTargetId == null) return;
-                if (_networked && _me != null && owner.id != _me) return;
-                final cardId = _selectedCardId!;
-                final toId = _tradeTargetId!;
-                _run(
-                  () => engine.tradeCard(
-                    fromPlayerId: owner.id,
-                    toPlayerId: toId,
-                    cardId: cardId,
-                  ),
-                  {
-                    'type': 'trade',
-                    'fromId': owner.id,
-                    'toId': toId,
-                    'cardId': cardId,
-                  },
-                );
                 setState(() {
                   _selectedCardId = null;
-                  _tradeTargetId = null;
+                  _healShares.clear();
                 });
               },
+            )
+          else if (_playerTapHint(state) != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Text(_playerTapHint(state)!),
             ),
           if (state.phase == GamePhase.dayForage) ...[
             if (_networked && !session!.isMyForageTurn)
               Text(
                 'Waiting for ${current.name} to forage or rest.',
                 textAlign: TextAlign.center,
+              )
+            else if (current.immobilized)
+              FilledButton(
+                onPressed: () => _run(
+                  engine.skipImmobilizedForage,
+                  {'type': 'skipForage', 'playerId': _me},
+                ),
+                child: Text('${current.name} cannot move'),
               )
             else if (current.forcedRest)
               FilledButton(
@@ -952,6 +1178,149 @@ class _Banner extends StatelessWidget {
   }
 }
 
+class _CraftBoxes extends StatelessWidget {
+  const _CraftBoxes({
+    required this.state,
+    required this.enabled,
+    required this.canCraft,
+    required this.buttonLabel,
+    required this.onCraft,
+    required this.onStartPick,
+    this.pendingItem,
+    this.shelterPickCount = 0,
+  });
+
+  final GameState state;
+  final bool enabled;
+  final bool Function(CraftItem item) canCraft;
+  final String Function(CraftItem item, bool canCraft) buttonLabel;
+  final void Function(
+    CraftItem item, {
+    Set<String> occupants,
+    String? recipientId,
+  }) onCraft;
+  final ValueChanged<CraftItem> onStartPick;
+  final CraftItem? pendingItem;
+  final int shelterPickCount;
+
+  bool get _autoShelter =>
+      state.players.length < 4 || state.alivePlayers.length <= 3;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppTheme.surface,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+        child: GridView.count(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          crossAxisCount: 3,
+          crossAxisSpacing: 8,
+          mainAxisSpacing: 8,
+          mainAxisExtent: 128,
+          children: [
+            for (final item in CraftItem.values)
+              if (item != CraftItem.fire) _box(context, item),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _box(BuildContext context, CraftItem item) {
+    final remaining = state.craftRemaining(item);
+    final ready = enabled && canCraft(item);
+    final picking = pendingItem == item;
+    final needsPick = item == CraftItem.spear ||
+        item == CraftItem.basket ||
+        (item == CraftItem.shelter && !_autoShelter);
+    final emoji = switch (item) {
+      CraftItem.fire => '🔥',
+      CraftItem.spear => '🗡️',
+      CraftItem.basket => '🧺',
+      CraftItem.shelter => '🛖',
+    };
+    final cost = item.cost.entries
+        .map((entry) => '${entry.value} ${entry.key}')
+        .join(' · ');
+    final label = picking
+        ? (item == CraftItem.shelter && shelterPickCount > 0
+            ? 'Build ($shelterPickCount)'
+            : 'Tap a survivor')
+        : (needsPick && ready ? 'Tap who' : buttonLabel(item, ready));
+
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: picking ? const Color(0xFF2A4033) : const Color(0xFF16241C),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: picking ? AppTheme.accent : const Color(0xFF2E4036),
+          width: picking ? 2 : 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '$emoji ${item.label}',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.titleSmall,
+          ),
+          Text(
+            '$remaining in deck · $cost',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+          const Spacer(),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton(
+              key: ValueKey('craft-${item.name}'),
+              onPressed: !ready
+                  ? null
+                  : () {
+                      if (needsPick) {
+                        onStartPick(item);
+                      } else {
+                        onCraft(item);
+                      }
+                    },
+              child: Text(label),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+List<({GameCard card, int count, List<GameCard> cards})> _stackForageCards(
+  List<GameCard> cards,
+) {
+  final groups = <String, List<GameCard>>{};
+  final order = <String>[];
+  for (final card in cards) {
+    final key = card.stackKey;
+    if (!groups.containsKey(key)) {
+      order.add(key);
+      groups[key] = <GameCard>[];
+    }
+    groups[key]!.add(card);
+  }
+  return [
+    for (final key in order)
+      (
+        card: groups[key]!.first,
+        count: groups[key]!.length,
+        cards: groups[key]!,
+      ),
+  ];
+}
+
 class _RosterGrid extends StatelessWidget {
   const _RosterGrid({
     required this.players,
@@ -961,8 +1330,17 @@ class _RosterGrid extends StatelessWidget {
     required this.selectedCardId,
     required this.shelterIds,
     required this.onCardTap,
+    required this.onPlayerTap,
+    this.onPlayerLongPress,
     this.caveShelter = false,
-    this.hideOtherHands = false,
+    this.hiddenCardIds = const {},
+    this.revealPlayerId,
+    this.fireLit = false,
+    this.healShares = const {},
+    this.canAssignHearts = false,
+    this.pickedIds = const {},
+    this.targeting = false,
+    this.tapHint,
   });
 
   final List<Player> players;
@@ -972,8 +1350,17 @@ class _RosterGrid extends StatelessWidget {
   final String? selectedCardId;
   final Set<String> shelterIds;
   final ValueChanged<String> onCardTap;
+  final ValueChanged<String> onPlayerTap;
+  final ValueChanged<String>? onPlayerLongPress;
   final bool caveShelter;
-  final bool hideOtherHands;
+  final Set<String> hiddenCardIds;
+  final String? revealPlayerId;
+  final bool fireLit;
+  final Map<String, int> healShares;
+  final bool canAssignHearts;
+  final Set<String> pickedIds;
+  final bool targeting;
+  final String? tapHint;
 
   @override
   Widget build(BuildContext context) {
@@ -998,44 +1385,54 @@ class _RosterGrid extends StatelessWidget {
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
               ),
-            LayoutBuilder(
-              builder: (context, constraints) {
-                final itemCount = players.length + 1;
-                final columns = itemCount <= 2 || constraints.maxWidth >= 900
-                    ? itemCount.clamp(1, 4)
-                    : 2;
-                return GridView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: itemCount,
-                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: columns,
-                    crossAxisSpacing: 8,
-                    mainAxisSpacing: 8,
-                    mainAxisExtent: 148,
-                  ),
-                  itemBuilder: (context, index) {
-                    if (index == players.length) {
-                      return _CampPanel(
-                        cards: campStash,
-                        selectedCardId: selectedCardId,
-                        onCardTap: onCardTap,
-                      );
-                    }
-                    final player = players[index];
-                    return _PlayerPanel(
-                      player: player,
-                      active: player.id == activeId,
-                      you: player.id == youId,
-                      selectedCardId: selectedCardId,
-                      shelter: shelterIds.contains(player.id),
-                      hideHand: hideOtherHands &&
-                          player.id != (youId ?? activeId),
-                      onCardTap: onCardTap,
-                    );
-                  },
-                );
-              },
+            if (tapHint != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Text(
+                  tapHint!,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppTheme.accent,
+                      ),
+                ),
+              ),
+            IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  for (var index = 0; index < 5; index++) ...[
+                    if (index > 0) const SizedBox(width: 8),
+                    Expanded(
+                      child: index == 4
+                          ? _CampPanel(
+                              cards: campStash,
+                              selectedCardId: selectedCardId,
+                              onCardTap: onCardTap,
+                              fireLit: fireLit,
+                            )
+                          : index >= players.length
+                              ? const _EmptySeat()
+                              : _PlayerPanel(
+                                  player: players[index],
+                                  active: players[index].id == activeId,
+                                  you: players[index].id == youId,
+                                  selectedCardId: selectedCardId,
+                                  shelter: shelterIds.contains(players[index].id),
+                                  hiddenCardIds: hiddenCardIds,
+                                  revealPlayerId: revealPlayerId,
+                                  onCardTap: onCardTap,
+                                  onPlayerTap: onPlayerTap,
+                                  onPlayerLongPress: onPlayerLongPress,
+                                  pendingHearts:
+                                      healShares[players[index].id] ?? 0,
+                                  canAssignHearts: canAssignHearts &&
+                                      players[index].isAlive,
+                                  targeting: targeting && players[index].isAlive,
+                                  picked: pickedIds.contains(players[index].id),
+                                ),
+                    ),
+                  ],
+                ],
+              ),
             ),
           ],
         ),
@@ -1051,8 +1448,15 @@ class _PlayerPanel extends StatelessWidget {
     this.you = false,
     required this.selectedCardId,
     required this.shelter,
-    required this.hideHand,
+    required this.hiddenCardIds,
+    this.revealPlayerId,
     required this.onCardTap,
+    required this.onPlayerTap,
+    this.onPlayerLongPress,
+    this.pendingHearts = 0,
+    this.canAssignHearts = false,
+    this.targeting = false,
+    this.picked = false,
   });
 
   final Player player;
@@ -1060,8 +1464,15 @@ class _PlayerPanel extends StatelessWidget {
   final bool you;
   final String? selectedCardId;
   final bool shelter;
-  final bool hideHand;
+  final Set<String> hiddenCardIds;
+  final String? revealPlayerId;
   final ValueChanged<String> onCardTap;
+  final ValueChanged<String> onPlayerTap;
+  final ValueChanged<String>? onPlayerLongPress;
+  final int pendingHearts;
+  final bool canAssignHearts;
+  final bool targeting;
+  final bool picked;
 
   @override
   Widget build(BuildContext context) {
@@ -1069,81 +1480,144 @@ class _PlayerPanel extends StatelessWidget {
       if (player.hasBasket) 'Basket',
       if (player.spearCount > 0) 'Spear ×${player.spearCount}',
       if (shelter) 'Shelter',
+      if (player.armsLocked) 'No arms',
+      if (player.immobilized) 'Cannot move',
       if (!player.isAlive) 'Gone',
       if (player.isAlive && player.hearts <= 0) '0♥',
     ].join(' · ');
-    final visibleCards = hideHand
-        ? const <GameCard>[]
-        : player.hand;
+    final showFresh = player.id == revealPlayerId;
+    final visibleCards = player.hand
+        .where((card) => showFresh || !hiddenCardIds.contains(card.id))
+        .toList();
+    final hiddenCount = player.hand.length - visibleCards.length;
+
+    final borderColor = picked
+        ? const Color(0xFFE8A54B)
+        : targeting
+            ? AppTheme.accent
+            : (active || you)
+                ? AppTheme.accent
+                : const Color(0xFF2E4036);
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 180),
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: (active || you) ? const Color(0xFF2A4033) : const Color(0xFF16241C),
+        color: (picked || targeting)
+            ? const Color(0xFF2A4033)
+            : (active || you)
+                ? const Color(0xFF2A4033)
+                : const Color(0xFF16241C),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: (active || you) ? AppTheme.accent : const Color(0xFF2E4036),
-          width: (active || you) ? 2.5 : 1,
+          color: borderColor,
+          width: (picked || targeting || active || you) ? 2.5 : 1,
         ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  player.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: player.isAlive
-                        ? (active ? AppTheme.accent : Colors.white)
-                        : Colors.white38,
-                    fontWeight: active ? FontWeight.w700 : FontWeight.w600,
-                    decoration:
-                        player.isAlive ? null : TextDecoration.lineThrough,
-                  ),
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              key: ValueKey('player-${player.id}'),
+              onTap: player.isAlive ? () => onPlayerTap(player.id) : null,
+              onLongPress: player.isAlive && onPlayerLongPress != null
+                  ? () => onPlayerLongPress!(player.id)
+                  : null,
+              borderRadius: BorderRadius.circular(8),
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            player.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: player.isAlive
+                                  ? (active ? AppTheme.accent : Colors.white)
+                                  : Colors.white38,
+                              fontWeight:
+                                  active ? FontWeight.w700 : FontWeight.w600,
+                              decoration: player.isAlive
+                                  ? null
+                                  : TextDecoration.lineThrough,
+                            ),
+                          ),
+                        ),
+                        if (you || active)
+                          Text(
+                            [
+                              if (you) 'You',
+                              if (active) 'Active',
+                            ].join(' · '),
+                            style: const TextStyle(
+                              color: AppTheme.accent,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    HeartDisplay(
+                      hearts: player.hearts,
+                      maxHearts: player.maxHearts,
+                      pending: pendingHearts,
+                      canAssign: canAssignHearts,
+                      slotPrefix: player.id,
+                    ),
+                    if (status.isNotEmpty)
+                      Text(
+                        status,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                  ],
                 ),
               ),
-              if (you || active)
-                Text(
-                  [
-                    if (you) 'You',
-                    if (active) 'Active',
-                  ].join(' · '),
-                  style: const TextStyle(
-                    color: AppTheme.accent,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-            ],
+            ),
           ),
-          const SizedBox(height: 4),
-          HeartDisplay(hearts: player.hearts),
-          if (status.isNotEmpty)
-            Text(
-              status,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
           const SizedBox(height: 6),
-          Expanded(
-            child: _MiniCardRow(
-              cards: visibleCards,
-              emptyLabel: hideHand
-                  ? (player.hand.isEmpty
-                      ? 'No cards'
-                      : '${player.hand.length} hidden')
-                  : 'No cards',
-              selectedCardId: selectedCardId,
-              onCardTap: onCardTap,
-            ),
+          _MiniCardRow(
+            cards: visibleCards,
+            emptyLabel: hiddenCount > 0
+                ? '$hiddenCount new hidden'
+                : 'No cards',
+            selectedCardId: selectedCardId,
+            onCardTap: onCardTap,
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _EmptySeat extends StatelessWidget {
+  const _EmptySeat();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: const Color(0xFF101A14),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFF2E4036)),
+      ),
+      child: Center(
+        child: Text(
+          'Empty',
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Colors.white38,
+              ),
+        ),
       ),
     );
   }
@@ -1154,11 +1628,13 @@ class _CampPanel extends StatelessWidget {
     required this.cards,
     required this.selectedCardId,
     required this.onCardTap,
+    this.fireLit = false,
   });
 
   final List<GameCard> cards;
   final String? selectedCardId;
   final ValueChanged<String> onCardTap;
+  final bool fireLit;
 
   @override
   Widget build(BuildContext context) {
@@ -1173,7 +1649,7 @@ class _CampPanel extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Camp',
+            fireLit ? 'Camp 🔥' : 'Camp',
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
@@ -1188,13 +1664,11 @@ class _CampPanel extends StatelessWidget {
             style: Theme.of(context).textTheme.bodySmall,
           ),
           const SizedBox(height: 6),
-          Expanded(
-            child: _MiniCardRow(
-              cards: cards,
-              emptyLabel: 'No cards',
-              selectedCardId: selectedCardId,
-              onCardTap: onCardTap,
-            ),
+          _MiniCardRow(
+            cards: cards,
+            emptyLabel: 'No cards',
+            selectedCardId: selectedCardId,
+            onCardTap: onCardTap,
           ),
         ],
       ),
@@ -1224,20 +1698,29 @@ class _MiniCardRow extends StatelessWidget {
       );
     }
 
-    return ListView.separated(
-      scrollDirection: Axis.horizontal,
-      itemCount: cards.length,
-      separatorBuilder: (context, index) => const SizedBox(width: 6),
-      itemBuilder: (context, index) {
-        final card = cards[index];
-        return ResourceCardTile(
-          card: card,
-          compact: true,
-          mini: true,
-          selected: card.id == selectedCardId,
-          onTap: () => onCardTap(card.id),
-        );
-      },
+    final stacks = _stackForageCards(cards);
+
+    return Wrap(
+      spacing: 4,
+      runSpacing: 4,
+      children: [
+        for (final stack in stacks)
+          ResourceCardTile(
+            card: stack.card,
+            compact: true,
+            mini: true,
+            count: stack.count,
+            selected: stack.cards.any((card) => card.id == selectedCardId),
+            onTap: () => onCardTap(
+              stack.cards
+                  .firstWhere(
+                    (card) => card.id == selectedCardId,
+                    orElse: () => stack.card,
+                  )
+                  .id,
+            ),
+          ),
+      ],
     );
   }
 }
@@ -1248,97 +1731,64 @@ class _CampCardActions extends StatelessWidget {
     required this.owner,
     required this.inCamp,
     required this.current,
-    required this.players,
-    required this.tradeTargetId,
-    required this.onTradeTargetChanged,
-    required this.onEat,
-    required this.onSplit,
     required this.onToCamp,
     required this.onFromCamp,
-    required this.onTrade,
+    this.tapHint,
+    this.canLightFire = false,
+    this.lightFireLabel = 'Light fire',
+    this.onLightFire,
     this.nightUse = false,
+    this.heartsPicked = 0,
+    this.onGiveHearts,
   });
 
   final GameCard? card;
   final Player? owner;
   final bool inCamp;
   final Player current;
-  final List<Player> players;
-  final String? tradeTargetId;
-  final ValueChanged<String?> onTradeTargetChanged;
-  final ValueChanged<int> onEat;
-  final VoidCallback onSplit;
+  final String? tapHint;
   final VoidCallback onToCamp;
   final VoidCallback onFromCamp;
-  final VoidCallback onTrade;
+  final bool canLightFire;
+  final String lightFireLabel;
+  final VoidCallback? onLightFire;
   final bool nightUse;
+  final int heartsPicked;
+  final VoidCallback? onGiveHearts;
 
   @override
   Widget build(BuildContext context) {
     if (card == null) return const SizedBox.shrink();
+    if (owner != null && owner!.cannotAct) {
+      return Text(
+        owner!.immobilized
+            ? '${owner!.name} cannot move or speak until the next day.'
+            : '${owner!.name} cannot use their arms until the next day.',
+      );
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (!inCamp && players.length > 1) ...[
-          DropdownButtonFormField<String>(
-            key: ValueKey(tradeTargetId),
-            initialValue: players.any((player) => player.id == tradeTargetId)
-                ? tradeTargetId
-                : null,
-            decoration: const InputDecoration(labelText: 'Use on / give to'),
-            items: players
-                .where((player) => player.id != owner?.id)
-                .map(
-                  (player) => DropdownMenuItem(
-                    value: player.id,
-                    child: Text(player.name),
-                  ),
-                )
-                .toList(),
-            onChanged: onTradeTargetChanged,
-          ),
+        if (tapHint != null) ...[
+          Text(tapHint!),
           const SizedBox(height: 8),
         ],
         Wrap(
           spacing: 8,
           runSpacing: 8,
           children: [
-            if (nightUse &&
-                card!.wreckage != null &&
-                !card!.isWreckageHeal)
-              const Padding(
-                padding: EdgeInsets.only(bottom: 4),
-                child: Text(
-                  'Assign this protection above, then resolve night.',
-                ),
+            if (onGiveHearts != null)
+              FilledButton(
+                onPressed: onGiveHearts,
+                child: Text('Give $heartsPicked♥'),
               ),
-            if (card!.isFood || card!.isWreckageHeal)
+            if (card!.kind == CardKind.wood)
               OutlinedButton(
-                onPressed: () => onEat(
-                  card!.fullHeal ? card!.healValue : card!.healValue,
-                ),
-                child: Text(
-                  card!.fullHeal
-                      ? (tradeTargetId == null
-                          ? 'Full heal (self)'
-                          : 'Full heal (chosen)')
-                      : (tradeTargetId == null
-                          ? 'Use +${card!.healValue}♥ (self)'
-                          : 'Use +${card!.healValue}♥ (chosen)'),
-                ),
+                onPressed: canLightFire ? onLightFire : null,
+                child: Text(lightFireLabel),
               ),
-            if ((card!.isFood && card!.healValue >= 2) ||
-                card!.wreckage == WreckageAbility.vodka)
-              OutlinedButton(
-                onPressed: tradeTargetId == null ? null : onSplit,
-                child: Text(
-                  card!.wreckage == WreckageAbility.vodka
-                      ? 'Share vodka (1♥ / 2♥)'
-                      : 'Split 1♥ each',
-                ),
-              ),
-            if (!nightUse && !inCamp)
+            if (!nightUse && !inCamp && card!.kind != CardKind.wood)
               OutlinedButton(
                 onPressed: onToCamp,
                 child: const Text('To camp'),
@@ -1346,15 +1796,11 @@ class _CampCardActions extends StatelessWidget {
             if (inCamp &&
                 (!nightUse ||
                     card!.isFood ||
-                    card!.isWreckageHeal))
+                    card!.isWreckageHeal) &&
+                card!.kind != CardKind.bonePile)
               OutlinedButton(
                 onPressed: onFromCamp,
                 child: Text('${current.name} takes'),
-              ),
-            if (!nightUse && !inCamp)
-              OutlinedButton(
-                onPressed: tradeTargetId == null ? null : onTrade,
-                child: const Text('Give'),
               ),
           ],
         ),

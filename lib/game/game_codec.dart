@@ -26,6 +26,7 @@ class GameCodec {
       'message': state.message,
       'won': state.won,
       'foragedThisRound': state.foragedThisRound.toList(),
+      'freshForageIds': state.freshForageIds.toList(),
       'actionLog': state.actionLog,
       'craftStock': {
         for (final item in CraftItem.values) item.name: state.craftRemaining(item),
@@ -41,6 +42,7 @@ class GameCodec {
       ],
       'activeNight':
           state.activeNight == null ? null : _night(state.activeNight!),
+      'peekedNights': state.peekedNights.map(_night).toList(),
     };
   }
 
@@ -85,10 +87,18 @@ class GameCodec {
       activeNight: json['activeNight'] == null
           ? null
           : _readNight(Map<String, dynamic>.from(json['activeNight'] as Map)),
+      peekedNights: [
+        for (final item in json['peekedNights'] as List? ?? const [])
+          _readNight(Map<String, dynamic>.from(item as Map)),
+      ],
       message: json['message'] as String,
       won: json['won'] as bool,
       foragedThisRound: {
         for (final id in json['foragedThisRound'] as List) id as String,
+      },
+      freshForageIds: {
+        for (final id in json['freshForageIds'] as List? ?? const [])
+          id as String,
       },
       actionLog: [
         for (final line in json['actionLog'] as List) line as String,
@@ -101,10 +111,15 @@ class GameCodec {
   static Map<String, dynamic> _card(GameCard card) => {
         'id': card.id,
         'name': card.name,
+        'flavor': card.flavor,
+        'effectBlurb': card.effectBlurb,
         'kind': card.kind.name,
         'healValue': card.healValue,
         'fullHeal': card.fullHeal,
         'uhOh': card.uhOh?.name,
+        'uhOhDamage': card.uhOhDamage,
+        'blockable': card.blockable,
+        'peekCount': card.peekCount,
         'boneIndex': card.boneIndex,
         'wreckage': card.wreckage?.name,
       };
@@ -119,11 +134,16 @@ class GameCodec {
       id: json['id'] as String,
       name: json['name'] as String,
       kind: CardKind.values.byName(json['kind'] as String),
+      flavor: json['flavor'] as String? ?? '',
+      effectBlurb: json['effectBlurb'] as String? ?? '',
       healValue: json['healValue'] as int? ?? 0,
       fullHeal: json['fullHeal'] as bool? ?? false,
       uhOh: json['uhOh'] == null
           ? null
           : UhOhEffect.values.byName(json['uhOh'] as String),
+      uhOhDamage: json['uhOhDamage'] as int? ?? 0,
+      blockable: json['blockable'] as bool? ?? false,
+      peekCount: json['peekCount'] as int? ?? 0,
       boneIndex: json['boneIndex'] as int?,
       wreckage: json['wreckage'] == null
           ? null
@@ -144,6 +164,8 @@ class GameCodec {
         'forcedForage': player.forcedForage,
         'forcedRest': player.forcedRest,
         'drewMadnessThisNight': player.drewMadnessThisNight,
+        'armsLocked': player.armsLocked,
+        'immobilized': player.immobilized,
         'pendingMadness': player.pendingMadness == null
             ? null
             : _madness(player.pendingMadness!),
@@ -163,6 +185,8 @@ class GameCodec {
       forcedForage: json['forcedForage'] as int?,
       forcedRest: json['forcedRest'] as bool,
       drewMadnessThisNight: json['drewMadnessThisNight'] as bool? ?? false,
+      armsLocked: json['armsLocked'] as bool? ?? false,
+      immobilized: json['immobilized'] as bool? ?? false,
       pendingMadness: json['pendingMadness'] == null
           ? null
           : _readMadness(

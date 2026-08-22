@@ -13,97 +13,197 @@ class Decks {
   static List<GameCard> forageDeck(Random random, int Function() nextId) {
     final cards = <GameCard>[];
 
-    void add(int count, GameCard Function(int i) builder) {
+    void add(int count, GameCard Function() builder) {
       for (var i = 0; i < count; i++) {
-        cards.add(builder(i));
+        cards.add(builder());
       }
     }
 
-    add(
-      DeckComposition.wildBerries,
-      (_) => GameCard(
+    GameCard resource(String name, CardKind kind, String flavor) {
+      return GameCard(
         id: 'c${nextId()}',
-        name: 'Wild Berries',
+        name: name,
+        flavor: flavor,
+        kind: kind,
+      );
+    }
+
+    GameCard food(String name, String flavor, int hearts) {
+      return GameCard(
+        id: 'c${nextId()}',
+        name: name,
+        flavor: flavor,
         kind: CardKind.food,
-        healValue: 1,
-      ),
+        healValue: hearts,
+      );
+    }
+
+    add(
+      DeckComposition.wood,
+      () => resource('Wood', CardKind.wood, 'helpful'),
     );
     add(
-      DeckComposition.creekFish,
-      (_) => GameCard(
-        id: 'c${nextId()}',
-        name: 'Creek Fish',
-        kind: CardKind.food,
-        healValue: 2,
-      ),
+      DeckComposition.stone,
+      () => resource('Stone', CardKind.stone, 'useful'),
     );
     add(
-      DeckComposition.freshKill,
-      (_) => GameCard(
-        id: 'c${nextId()}',
-        name: 'Fresh Kill',
-        kind: CardKind.food,
-        healValue: 3,
-      ),
+      DeckComposition.fiber,
+      () => resource('Fiber', CardKind.fiber, 'functional'),
     );
     add(
-      DeckComposition.fallenBranch,
-      (_) => GameCard(
+      DeckComposition.bonePile,
+      () => GameCard(
         id: 'c${nextId()}',
-        name: 'Fallen Branch',
-        kind: CardKind.wood,
-      ),
-    );
-    add(
-      DeckComposition.riverStone,
-      (_) => GameCard(
-        id: 'c${nextId()}',
-        name: 'River Stone',
-        kind: CardKind.stone,
-      ),
-    );
-    add(
-      DeckComposition.vineCord,
-      (_) => GameCard(
-        id: 'c${nextId()}',
-        name: 'Vine Cord',
-        kind: CardKind.fiber,
-      ),
-    );
-    add(
-      DeckComposition.bonePieces,
-      (i) => GameCard(
-        id: 'c${nextId()}',
-        name: 'Wreck Bone ${i + 1}',
+        name: 'Bone Pile',
+        flavor: 'a scattered',
         kind: CardKind.bonePile,
-        boneIndex: i + 1,
       ),
     );
     add(
-      DeckComposition.unstableSlope,
-      (_) => GameCard(
+      DeckComposition.grub,
+      () => food('Grub', 'disgusting and nutritious', 1),
+    );
+    add(
+      DeckComposition.wildOnion,
+      () => food('Wild Onion', 'dubious smelling', 1),
+    );
+    add(
+      DeckComposition.wildParsnip,
+      () => food('Wild Parsnip', 'bland and starchy', 1),
+    );
+    add(
+      DeckComposition.berries,
+      () => food('Berries', 'seemingly edible', 1),
+    );
+    add(
+      DeckComposition.currants,
+      () => food('Currants', 'brutally sour', 1),
+    );
+    add(
+      DeckComposition.squirrel,
+      () => food('Squirrel', 'a recently deceased', 2),
+    );
+    add(
+      DeckComposition.wildPlum,
+      () => food('Wild Plum', 'a mildly sweet', 2),
+    );
+    add(
+      DeckComposition.minnows,
+      () => food('Minnows', 'tiny but tasty', 2),
+    );
+    add(
+      DeckComposition.chanterelle,
+      () => food('Chanterelle', 'delightfully fragrant', 2),
+    );
+    add(
+      DeckComposition.pineNuts,
+      () => food('Pine Nuts', 'delicious and nutritious', 2),
+    );
+    add(
+      DeckComposition.honeycomb,
+      () => food('Honeycomb', 'sweet and sticky', 3),
+    );
+    add(
+      DeckComposition.trout,
+      () => food('Trout', 'freshly caught', 3),
+    );
+    add(
+      DeckComposition.rabbit,
+      () => food('Rabbit', 'a hearty meal of', 3),
+    );
+    add(
+      DeckComposition.dandelion,
+      () => food('Dandelion', 'a very bitter', 1),
+    );
+    add(
+      DeckComposition.seagull,
+      () => GameCard(
         id: 'c${nextId()}',
-        name: 'Unstable Slope',
+        name: 'Seagull',
+        flavor: 'just missed catching that',
         kind: CardKind.uhOh,
-        uhOh: UhOhEffect.injury,
+        uhOh: UhOhEffect.none,
+        effectBlurb: 'No effect.',
       ),
     );
     add(
-      DeckComposition.spoiledCache,
-      (_) => GameCard(
+      DeckComposition.moose,
+      () => GameCard(
         id: 'c${nextId()}',
-        name: 'Spoiled Cache',
+        name: 'Moose',
+        flavor: 'a violent encounter with',
         kind: CardKind.uhOh,
-        uhOh: UhOhEffect.spoiled,
+        uhOh: UhOhEffect.loseHearts,
+        uhOhDamage: 2,
+        effectBlurb: 'Lose 2 hearts.',
       ),
     );
     add(
-      DeckComposition.stalkingBeast,
-      (_) => GameCard(
+      DeckComposition.waspNest,
+      () => GameCard(
         id: 'c${nextId()}',
-        name: 'Stalking Beast',
+        name: 'Wasp Nest',
+        flavor: 'an agonizing discovery of a',
         kind: CardKind.uhOh,
-        uhOh: UhOhEffect.beast,
+        uhOh: UhOhEffect.loseHearts,
+        uhOhDamage: 1,
+        effectBlurb: 'Lose 1 heart.',
+      ),
+    );
+    add(
+      DeckComposition.poisonousMushrooms,
+      () => GameCard(
+        id: 'c${nextId()}',
+        name: 'Mushrooms',
+        flavor: 'ludicrously poisonous',
+        kind: CardKind.uhOh,
+        uhOh: UhOhEffect.setHeartsToOne,
+        effectBlurb: 'Lose all but 1 heart.',
+      ),
+    );
+    add(
+      DeckComposition.paralysisMushroom,
+      () => GameCard(
+        id: 'c${nextId()}',
+        name: 'Mushroom',
+        flavor: 'Paralysis inducing',
+        kind: CardKind.uhOh,
+        uhOh: UhOhEffect.lockArms,
+        effectBlurb: 'Unable to use your arms until the next day.',
+      ),
+    );
+    add(
+      DeckComposition.neurotoxicMushroom,
+      () => GameCard(
+        id: 'c${nextId()}',
+        name: 'Mushroom',
+        flavor: 'a lovely neurotoxic',
+        kind: CardKind.uhOh,
+        uhOh: UhOhEffect.immobilize,
+        effectBlurb: 'Unable to move or speak until the next day.',
+      ),
+    );
+    add(
+      DeckComposition.magicalMushrooms,
+      () => GameCard(
+        id: 'c${nextId()}',
+        name: 'Mushrooms',
+        flavor: 'mysteriously magical',
+        kind: CardKind.uhOh,
+        uhOh: UhOhEffect.peekNights,
+        peekCount: 2,
+        effectBlurb: 'Look ahead at the next two night cards.',
+      ),
+    );
+    add(
+      DeckComposition.psychotropicMushrooms,
+      () => GameCard(
+        id: 'c${nextId()}',
+        name: 'Mushrooms',
+        flavor: 'cute little psychotropic',
+        kind: CardKind.uhOh,
+        uhOh: UhOhEffect.drawMadness,
+        effectBlurb: 'Draw a madness card.',
       ),
     );
 
@@ -175,7 +275,8 @@ class Decks {
       CraftItem.basket: DeckComposition.craftBasket,
       CraftItem.shelter: DeckComposition.craftShelter,
     };
-    final craftTotal = stock.values.fold<int>(0, (sum, n) => sum + n);
+    final craftTotal = stock.values.fold<int>(0, (sum, n) => sum + n) -
+        DeckComposition.craftFire;
     assert(
       craftTotal + DeckComposition.craftGuides ==
           DeckComposition.craftAndGuides,

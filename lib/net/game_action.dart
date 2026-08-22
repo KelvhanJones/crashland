@@ -82,16 +82,11 @@ void applyHostAction(GameEngine engine, Map<String, dynamic> action) {
         hearts: action['hearts'] as int?,
       );
     case 'shareHeal':
-      engine.shareHealCard(
-        ownerId: action['ownerId'] as String,
-        cardId: action['cardId'] as String,
-        otherId: action['otherId'] as String,
-      );
     case 'splitFood':
-      engine.splitFood(
-        fromPlayerId: action['fromId'] as String,
-        toPlayerId: action['toId'] as String,
+      engine.splitHeal(
+        ownerId: (action['ownerId'] ?? action['fromId']) as String,
         cardId: action['cardId'] as String,
+        shares: _readHealShares(action),
       );
     case 'craft':
       engine.craft(
@@ -101,9 +96,17 @@ void applyHostAction(GameEngine engine, Map<String, dynamic> action) {
             id as String,
         },
         playerId: action['playerId'] as String?,
+        recipientId: action['recipientId'] as String?,
+      );
+    case 'lightFire':
+      engine.lightFire(
+        playerId: action['playerId'] as String?,
+        woodCardId: action['cardId'] as String?,
       );
     case 'assembleBones':
-      engine.assembleBoneCircle();
+      engine.assembleBoneCircle(playerId: action['playerId'] as String?);
+    case 'skipForage':
+      engine.skipImmobilizedForage();
     case 'beginNight':
       engine.beginNight();
     case 'applyMadness':
@@ -111,4 +114,30 @@ void applyHostAction(GameEngine engine, Map<String, dynamic> action) {
     default:
       break;
   }
+}
+
+Map<String, int> _readHealShares(Map<String, dynamic> action) {
+  final raw = action['shares'];
+  if (raw is List) {
+    return {
+      for (final item in raw)
+        (item as Map)['playerId'] as String: (item['hearts'] as num).toInt(),
+    };
+  }
+  if (raw is Map) {
+    return {
+      for (final entry in raw.entries)
+        entry.key as String: (entry.value as num).toInt(),
+    };
+  }
+  if (action['otherId'] is String) {
+    return {
+      action['ownerId'] as String: action['ownerHearts'] as int? ?? 1,
+      action['otherId'] as String: action['otherHearts'] as int? ?? 2,
+    };
+  }
+  return {
+    action['fromId'] as String: action['fromHearts'] as int? ?? 1,
+    action['toId'] as String: action['toHearts'] as int? ?? 1,
+  };
 }
