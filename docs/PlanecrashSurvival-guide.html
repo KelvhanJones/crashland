@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Planecrash Survival — Player Guide</title>
+  <style>
+    :root {
+      --ink: #1a241c;
+      --muted: #4a5c52;
+      --paper: #f4f0e6;
+      --rule: #c9b896;
+      --forest: #0f1a14;
+      --surface: #1b2a22;
+      --amber: #c4842e;
+      --danger: #a63d34;
+    }
+    @page {
+      size: letter;
+      margin: 0.7in 0.75in 0.75in 0.75in;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: var(--paper);
+      color: var(--ink);
+      font: 11pt/1.45 "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+    }
+    .cover {
+      min-height: 9.4in;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      text-align: center;
+      page-break-after: always;
+      padding: 0.4in 0.2in;
+    }
+    .cover img {
+      width: 148px;
+      height: 148px;
+      border-radius: 28px;
+      margin: 0 auto 28px;
+      display: block;
+    }
+    .cover h1 {
+      font-family: "Segoe UI", "Helvetica Neue", sans-serif;
+      font-size: 34pt;
+      letter-spacing: 0.04em;
+      margin: 0 0 8px;
+      color: var(--forest);
+      font-weight: 700;
+    }
+    .cover .kicker {
+      font-family: "Segoe UI", sans-serif;
+      text-transform: uppercase;
+      letter-spacing: 0.22em;
+      font-size: 9pt;
+      color: var(--amber);
+      font-weight: 700;
+      margin-bottom: 18px;
+    }
+    .cover .lead {
+      max-width: 28em;
+      margin: 0 auto 28px;
+      font-size: 13pt;
+      color: var(--muted);
+    }
+    .cover .meta {
+      font-family: "Segoe UI", sans-serif;
+      font-size: 9.5pt;
+      color: var(--muted);
+      letter-spacing: 0.04em;
+    }
+    h1.section {
+      font-family: "Segoe UI", sans-serif;
+      font-size: 18pt;
+      color: var(--forest);
+      border-bottom: 2px solid var(--amber);
+      padding-bottom: 6px;
+      margin: 0 0 14px;
+      page-break-after: avoid;
+    }
+    h2 {
+      font-family: "Segoe UI", sans-serif;
+      font-size: 12.5pt;
+      color: var(--forest);
+      margin: 18px 0 8px;
+      page-break-after: avoid;
+    }
+    p { margin: 0 0 10px; }
+    ul, ol { margin: 0 0 12px; padding-left: 1.2em; }
+    li { margin-bottom: 4px; }
+    .note {
+      border-left: 3px solid var(--amber);
+      padding: 8px 12px;
+      margin: 12px 0 16px;
+      background: #efe6d2;
+      page-break-inside: avoid;
+    }
+    .note strong { color: var(--forest); }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 0 0 16px;
+      font-size: 10pt;
+      page-break-inside: auto;
+    }
+    th, td {
+      border-bottom: 1px solid var(--rule);
+      text-align: left;
+      padding: 5px 7px 5px 0;
+      vertical-align: top;
+    }
+    th {
+      font-family: "Segoe UI", sans-serif;
+      font-size: 8.5pt;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+      font-weight: 700;
+    }
+    td.num, th.num { text-align: right; width: 3.2em; }
+    .chapter { page-break-before: always; }
+    .chapter.first { page-break-before: auto; }
+    footer.disclaimer {
+      margin-top: 24px;
+      font-size: 9pt;
+      color: var(--muted);
+      font-style: italic;
+    }
+    .toc a { color: var(--ink); text-decoration: none; }
+    .toc td:last-child { text-align: right; color: var(--muted); font-family: "Segoe UI", sans-serif; font-size: 9pt; }
+  </style>
+</head>
+<body>
+
+  <section class="cover">
+    <img src="../assets/icon/app_icon.png" alt="Planecrash Survival" />
+    <div class="kicker">Cooperative survival · 2–4 players</div>
+    <h1>Planecrash Survival</h1>
+    <p class="lead">The crash starts at night. The wreck is already burning — use that fire, forage at dawn, craft, and hold out until rescue.</p>
+    <p class="meta">Player guide · Digital edition · August 2026</p>
+  </section>
+
+  <section class="chapter first">
+    <h1 class="section">Contents</h1>
+    <table class="toc">
+      <tr><td>The wreck</td><td>How you win and lose</td></tr>
+      <tr><td>Getting started</td><td>Install, setup, pass-and-play, Wi‑Fi</td></tr>
+      <tr><td>How a day goes</td><td>Night, forage, camp, madness</td></tr>
+      <tr><td>How to tap</td><td>Choosing survivors on a phone or PC</td></tr>
+      <tr><td>Hearts</td><td>Starting health, 0♥, dawn death</td></tr>
+      <tr><td>Forage</td><td>Draws, rest, hazards, food, bones</td></tr>
+      <tr><td>Camp</td><td>Fire, craft, trade, heals</td></tr>
+      <tr><td>Wreckage</td><td>The nine crash items</td></tr>
+      <tr><td>Night</td><td>Weather, animals, quiet cards, Rescue</td></tr>
+      <tr><td>Madness</td><td>One-heart checks and prompts</td></tr>
+      <tr><td>Components</td><td>Deck counts</td></tr>
+      <tr><td>Troubleshooting</td><td>Windows, firewall, Wi‑Fi</td></tr>
+    </table>
+    <p class="note"><strong>This is a cooperative game.</strong> You share one camp. Talk. Give food. Craft for someone else. If anyone is alive when Rescue arrives, everyone still standing wins.</p>
+    <footer class="disclaimer">Planecrash Survival is an original game. It is not affiliated with any existing tabletop title.</footer>
+  </section>
+
+  <section class="chapter">
+    <h1 class="section">The wreck</h1>
+    <p>You are survivors of a plane crash in deep woods. There is no dealer after setup: the app is the table. You forage for wood, stone, fiber, and food; light a single campfire; craft spears, baskets, and shelter; and endure a deck of nights until searchlights find the wreck — or they do not.</p>
+    <h2>Win</h2>
+    <p>At least one survivor is alive when <strong>The Rescue</strong> is revealed. Rescue is shuffled into the last three night cards of the expedition you chose (8, 12, or 16 nights).</p>
+    <h2>Lose</h2>
+    <p>Every survivor is dead. You can forage down to <strong>0 hearts</strong> and still be alive until the <strong>next dawn</strong>. If you are still at 0♥ when dawn comes, you die unless you ate or used a heal before then.</p>
+  </section>
+
+  <section class="chapter">
+    <h1 class="section">Getting started</h1>
+    <h2>Windows</h2>
+    <p>Friends do not need Flutter. Send either:</p>
+    <ul>
+      <li><strong>PlanecrashSurvival-setup.exe</strong> — installer. Optional desktop shortcut. Uninstall from Windows Settings.</li>
+      <li><strong>PlanecrashSurvival-windows.zip</strong> — unzip and run <strong>crashland.exe</strong>. Keep the exe, <code>flutter_windows.dll</code>, and the <code>data</code> folder together.</li>
+    </ul>
+    <p>Windows may show SmartScreen because the app is unsigned. Choose <strong>More info → Run anyway</strong>. If it will not start, install the Microsoft Visual C++ Redistributable (x64).</p>
+
+    <h2>Home screen</h2>
+    <table>
+      <thead>
+        <tr><th>Button</th><th>Use when</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Pass-and-play</td><td>One device. Hand it around on each forage turn.</td></tr>
+        <tr><td>Host on this device</td><td>You are the table. Others join on the same Wi‑Fi.</td></tr>
+        <tr><td>Join another device</td><td>Someone else is hosting. Enter their IP and your name.</td></tr>
+      </tbody>
+    </table>
+
+    <h2>Setup</h2>
+    <ol>
+      <li>Choose <strong>2, 3, or 4</strong> survivors.</li>
+      <li>Name them (or leave blank).</li>
+      <li>Choose difficulty: <strong>8 easy / 12 / 16 hard</strong> nights. Rescue still sits in the last three cards; a longer deck just means more nights before that window.</li>
+      <li>Each survivor starts with <strong>3 hearts</strong>, then the app rolls up to 3 more (each roll is 0 or 1). Maximum is <strong>6 hearts</strong>.</li>
+      <li>Each survivor is dealt <strong>one wreckage item</strong> from the nine-card crash pool.</li>
+      <li>The game <strong>begins at night</strong>. The wreck is already on fire. That fire lasts until dawn.</li>
+    </ol>
+
+    <h2>Wi‑Fi (same network only)</h2>
+    <ol>
+      <li>Host and joiners must be on the <strong>same Wi‑Fi</strong> (or a VPN such as Tailscale).</li>
+      <li>The host opens a lobby. Share the address shown, like <strong>192.168.1.12:7384</strong>.</li>
+      <li>Joiners type that IP and a name. Seats fill as host first, then p1, p2, …</li>
+      <li>Host taps <strong>Start expedition</strong> when at least two survivors are seated.</li>
+    </ol>
+    <p>The <strong>host device runs the real game</strong>. Other devices send actions and receive the full table. Each phone only shows that player’s hand. Hearts, camp, and the roster stay visible. Forage buttons appear on the current player’s device. At night, everyone can assign their own defenses; the host taps <strong>Resolve night</strong>.</p>
+    <p>This is not internet play. Phones on different networks cannot join by IP.</p>
+  </section>
+
+  <section class="chapter">
+    <h1 class="section">How a day goes</h1>
+    <ol>
+      <li><strong>Night.</strong> A night card is revealed. Assign fire, shelter, spears, and wreckage, eat if you need to, then resolve. Night 1 is the crash: fire is already lit.</li>
+      <li><strong>Madness</strong> (if needed). Anyone at 1♥ after night draws one madness card.</li>
+      <li><strong>Dawn / forage.</strong> Each living survivor, in turn, either rests or spends 1–3 hearts to draw that many forage cards (basket draws one extra).</li>
+      <li><strong>Camp.</strong> Eat, heal, trade, stash, light the fire, craft, assemble bones. Then begin the next night.</li>
+    </ol>
+    <p>Fire <strong>goes out at dawn</strong>. If you want fire tonight, someone must spend 1 wood during camp — unless last night’s weather forbade fire.</p>
+  </section>
+
+  <section class="chapter">
+    <h1 class="section">How to tap</h1>
+    <p>On a phone or PC, <strong>survivor boxes are how you choose people</strong>. There are no “give to” dropdowns. Select a card or craft first, then tap a name/hearts box.</p>
+    <table>
+      <thead>
+        <tr><th>You selected</th><th>Then tap a survivor to…</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Food or vodka</td><td>Give <strong>1♥</strong>. Repeat until the card is spent. <strong>Give N♥</strong> confirms a partial. Long-press a box to take back one pending heart.</td></tr>
+        <tr><td>Chocolate or adrenaline</td><td>Dump the whole heal into that person.</td></tr>
+        <tr><td>A card to give</td><td>Trade it immediately.</td></tr>
+        <tr><td>Spear or basket (craft)</td><td>Who receives it. You can craft a basket for someone else even if you already have one.</td></tr>
+        <tr><td>Shelter (4 players)</td><td>Who it covers (1–3). A third tap builds; or tap <strong>Build (N)</strong> for fewer.</td></tr>
+        <tr><td>Newspaper / tarp / blanket at night</td><td>Who it protects (newspaper covers two, tarp and blanket one).</td></tr>
+        <tr><td>Flare gun</td><td>Selecting the card covers the whole camp. No extra tap.</td></tr>
+        <tr><td>Spear at night</td><td>The spear-holder who uses it.</td></tr>
+        <tr><td>Raccoons</td><td>Who discards a food instead of losing 1♥.</td></tr>
+      </tbody>
+    </table>
+    <p>Tap <strong>mini cards</strong> to select items. Tap the <strong>name and hearts</strong> on a box to choose that survivor — so picking a card does not also assign a heart to its owner.</p>
+    <p>The roster is always five cells: four player seats (Empty if unused) plus Camp.</p>
+  </section>
+
+  <section class="chapter">
+    <h1 class="section">Hearts</h1>
+    <ul>
+      <li>Maximum <strong>6♥</strong>.</li>
+      <li>Forage by flipping hearts. You may go to <strong>0♥</strong> and remain alive until the next dawn.</li>
+      <li>Eat food or use a heal wreckage before that dawn, or you die when dawn arrives.</li>
+      <li>A dead player’s whole hand — including wood — dumps to camp.</li>
+    </ul>
+  </section>
+
+  <section class="chapter">
+    <h1 class="section">Forage</h1>
+    <p>On your forage turn you must either <strong>rest</strong> or <strong>forage</strong>.</p>
+    <ul>
+      <li><strong>Rest:</strong> recover 1♥ (not above 6).</li>
+      <li><strong>Forage:</strong> spend 1, 2, or 3♥ and draw that many cards. A <strong>Basket</strong> draws one extra card.</li>
+      <li><strong>Basket rest:</strong> if you have a Basket, you may rest by drawing 1 card instead of healing.</li>
+    </ul>
+    <p><strong>Fresh forage</strong> is hidden from everyone except the forager until camp or dawn. Then the table can see it.</p>
+    <p><strong>Bone piles</strong> go straight to camp. Nobody can take bones from camp. Four bones at camp can assemble a circle during camp.</p>
+    <p>Matching forage cards of the same type stack in your hand.</p>
+
+    <h2>Food</h2>
+    <p>Food restores hearts. Cards that heal 2 or 3 can be split among survivors (1♥ per tap until the value is used). 1♥ food is a single tap.</p>
+    <table>
+      <thead>
+        <tr><th>Food</th><th class="num">♥</th><th class="num">Qty</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Grub, Wild Onion, Berries, Currants, Dandelion</td><td class="num">1</td><td class="num">4 / 4 / 4 / 4 / 3</td></tr>
+        <tr><td>Wild Parsnip</td><td class="num">1</td><td class="num">3</td></tr>
+        <tr><td>Squirrel, Wild Plum, Minnows, Chanterelle</td><td class="num">2</td><td class="num">3 / 3 / 3 / 4</td></tr>
+        <tr><td>Pine Nuts</td><td class="num">2</td><td class="num">5</td></tr>
+        <tr><td>Honeycomb, Trout, Rabbit</td><td class="num">3</td><td class="num">2 each</td></tr>
+      </tbody>
+    </table>
+
+    <h2>Hazards (resolve as you draw)</h2>
+    <table>
+      <thead>
+        <tr><th>Card</th><th>Effect</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Seagull</td><td>Nothing. You missed.</td></tr>
+        <tr><td>Moose</td><td>Lose 2♥.</td></tr>
+        <tr><td>Wasp Nest</td><td>Lose 1♥.</td></tr>
+        <tr><td>Poisonous mushrooms</td><td>Drop to 1♥ if you had more.</td></tr>
+        <tr><td>Paralysis mushroom</td><td>Cannot use your arms (cards, craft, wreckage) until the next day.</td></tr>
+        <tr><td>Neurotoxic mushroom</td><td>Cannot move or speak: no camp/gear, skip leftover forage, until the next day.</td></tr>
+        <tr><td>Magical mushrooms</td><td>Look at the next two night cards. They stay in the deck.</td></tr>
+        <tr><td>Psychotropic mushrooms</td><td>Draw a madness card immediately.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="chapter">
+    <h1 class="section">Camp</h1>
+    <p>Anyone who can act may eat, heal, trade, stash, light the fire, or craft. Then someone begins the next night.</p>
+
+    <h2>Wood and the fire</h2>
+    <ul>
+      <li>There is <strong>one campfire</strong>. It is not a craft-deck card.</li>
+      <li>Select a <strong>wood</strong> card, then <strong>Light fire</strong>. Cost: 1 wood.</li>
+      <li>Fire lasts through the coming night and goes out at dawn.</li>
+      <li>Some weather forbids fire the following night. You cannot light it in that camp.</li>
+      <li>Living survivors <strong>cannot stash wood</strong> in camp. Wood only reaches camp if its owner dies (the whole hand dumps).</li>
+    </ul>
+
+    <h2>Trade and stash</h2>
+    <p>Give cards by selecting one, then tapping who receives it. Stash non-wood cards in camp; take them back later. Bones cannot be taken from camp.</p>
+
+    <h2>Craft</h2>
+    <p>Concurrent stock. Used or destroyed items return to the craft deck.</p>
+    <table>
+      <thead>
+        <tr><th>Item</th><th class="num">Stock</th><th>Cost</th><th>What it does</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Spear</td>
+          <td class="num">6</td>
+          <td>1 wood + 1 stone</td>
+          <td>Give to any survivor. Blocks one animal or human attack for them, then breaks.</td>
+        </tr>
+        <tr>
+          <td>Basket</td>
+          <td class="num">6</td>
+          <td>1 wood + 2 fiber</td>
+          <td>Give to someone who does not already have one. Extra forage card; optional rest-draw. Returns if the owner dies.</td>
+        </tr>
+        <tr>
+          <td>Shelter</td>
+          <td class="num">2</td>
+          <td>2 wood + 2 stone + 2 fiber</td>
+          <td>Covers up to 3 survivors from most weather. With fewer than 4 players, everyone is covered. With 4, choose who. Some nights destroy it.</td>
+        </tr>
+      </tbody>
+    </table>
+    <p>Tap the craft box, then tap who gets the spear or basket. Shelter with 4 players: tap occupants.</p>
+
+    <h2>Bone circle</h2>
+    <p>When four bone piles are at camp, tap <strong>Assemble bone circle</strong>. One dead survivor returns at 3♥. Everyone who was already living gains 2♥.</p>
+  </section>
+
+  <section class="chapter">
+    <h1 class="section">Wreckage</h1>
+    <p>Nine items. Each player is dealt one at the crash. Owners choose who benefits. Heals can be used from a hand or from camp stash.</p>
+    <table>
+      <thead>
+        <tr><th>Item</th><th>Effect</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Taser</td><td>Protects 1 player from 1 animal or human attack. Reusable.</td></tr>
+        <tr><td>Bottle of Vodka</td><td>+3♥, shareable (1♥ per tap). Single use.</td></tr>
+        <tr><td>Chocolate Bar</td><td>+3♥, no split. Single use.</td></tr>
+        <tr><td>Newspaper</td><td>Protects 2 players from 1 weather event. Single use.</td></tr>
+        <tr><td>Airline Blanket</td><td>Protects 1 player from 1 weather event. Single use.</td></tr>
+        <tr><td>Tarp (×2)</td><td>Protects 1 player from 1 weather event. Reusable.</td></tr>
+        <tr><td>Adrenaline Syringe</td><td>Fully restores one player’s hearts. Single use.</td></tr>
+        <tr><td>Flare Gun</td><td>Protects the whole camp from 1 animal attack. Single use.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="chapter">
+    <h1 class="section">Night</h1>
+    <p>A night card is revealed. You may still eat and use heals. Assign spears and wreckage by tapping, then the host (or the pass-and-play device) taps <strong>Resolve night</strong>.</p>
+    <ul>
+      <li><strong>Fire</strong> cancels or softens some threats (see the card text).</li>
+      <li><strong>Shelter</strong> and weather wreckage protect against weather.</li>
+      <li><strong>Spears, taser, flare gun</strong> help against animal attacks.</li>
+      <li><strong>The Cave</strong> grants permanent shelter for everyone.</li>
+      <li><strong>The Rescue</strong> wins if anyone is alive.</li>
+    </ul>
+
+    <h2>Quiet and other nights</h2>
+    <table>
+      <thead><tr><th>Card</th><th>What happens</th></tr></thead>
+      <tbody>
+        <tr><td>The Cave</td><td>Permanent shelter for all.</td></tr>
+        <tr><td>The Fog, The Dark, The Quiet, The Calm, The Night, The Woods</td><td>Nothing.</td></tr>
+        <tr><td>The Owl</td><td>Everyone +1♥.</td></tr>
+        <tr><td>The Deer</td><td>Everyone +3♥.</td></tr>
+        <tr><td>The Score</td><td>Everyone +1♥, +1 more if fire is lit.</td></tr>
+        <tr><td>The Guilt, The Voices, The Fear, The Bugs, The Terror</td><td>Everyone −1♥. Fire cancels.</td></tr>
+        <tr><td>The Mountain</td><td>Everyone −2♥. Shelter destroyed.</td></tr>
+      </tbody>
+    </table>
+
+    <h2>Weather</h2>
+    <p>Hits unsheltered survivors unless a weather wreckage covers them. Several of these also ban fire tomorrow.</p>
+    <table>
+      <thead><tr><th>Card</th><th>What happens</th></tr></thead>
+      <tbody>
+        <tr><td>The Storm</td><td>Unsheltered −2♥. Shelter destroyed. No fire tomorrow.</td></tr>
+        <tr><td>The Drizzle / Light Rain / The Sleet</td><td>Unsheltered −1♥. No fire tomorrow.</td></tr>
+        <tr><td>The Rain (×3)</td><td>Unsheltered −1♥. No fire tomorrow.</td></tr>
+        <tr><td>Heavy Rain (×3)</td><td>Unsheltered −2♥. No fire tomorrow.</td></tr>
+        <tr><td>The Gale</td><td>Unsheltered −1♥. Everyone discards 1 forage (if any).</td></tr>
+        <tr><td>The Wind (×2)</td><td>Unsheltered −1♥. All fiber is lost.</td></tr>
+        <tr><td>The Flood</td><td>All forage lost. Shelter destroyed. No fire tomorrow.</td></tr>
+      </tbody>
+    </table>
+
+    <h2>Animals</h2>
+    <table>
+      <thead><tr><th>Card</th><th>What happens</th></tr></thead>
+      <tbody>
+        <tr><td>The Birds, Giant Squirrel, The Weasels</td><td>Everyone discards 1 forage (if any).</td></tr>
+        <tr><td>The Bats</td><td>Everyone −1♥. Fire cancels.</td></tr>
+        <tr><td>The Wolves</td><td>Everyone −2♥. Fire reduces the loss to 1♥.</td></tr>
+        <tr><td>Wolverine</td><td>Anyone holding a forage card −1♥. Fire cancels.</td></tr>
+        <tr><td>The Cougar</td><td>Everyone −2♥.</td></tr>
+        <tr><td>The Bear</td><td>Everyone −2♥. Shelter destroyed.</td></tr>
+        <tr><td>The Raccoons (×2)</td><td>Each survivor discards 1 food or loses 1♥. Fire cancels.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="chapter">
+    <h1 class="section">Madness</h1>
+    <p>After night, anyone at <strong>1♥</strong> who has not already drawn madness this night draws <strong>one</strong> card. Resolve it, then the next person at 1♥, until nobody at 1♥ is waiting.</p>
+    <ul>
+      <li><strong>8 cards</strong> cost 1♥ (Paranoia, Panic, Despair, Nightmare, Blackout, Vertigo, Hollow, Breakdown).</li>
+      <li><strong>13 cards</strong> are roleplay prompts with no mechanical penalty — pirate talk, singing, accents, fake crash conspiracies, and so on. Do them. Then keep playing.</li>
+    </ul>
+    <p>Psychotropic mushrooms during forage also draw a madness card immediately.</p>
+  </section>
+
+  <section class="chapter">
+    <h1 class="section">Components</h1>
+    <table>
+      <thead>
+        <tr><th>Deck</th><th class="num">Cards</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Forage</td><td class="num">109</td></tr>
+        <tr><td>Night (including Rescue)</td><td class="num">41</td></tr>
+        <tr><td>Madness</td><td class="num">21</td></tr>
+        <tr><td>Craft in play (spear / basket / shelter)</td><td class="num">6 / 6 / 2</td></tr>
+        <tr><td>Wreckage</td><td class="num">9</td></tr>
+      </tbody>
+    </table>
+    <p>Forage resources: Wood 22, Stone 12, Fiber 12, Bone pile 9, plus the foods and eight hazards listed above.</p>
+    <p>An expedition does not use the entire night deck. Difficulty deals 8, 12, or 16 cards, with Rescue shuffled into the last three.</p>
+  </section>
+
+  <section class="chapter">
+    <h1 class="section">Troubleshooting</h1>
+    <table>
+      <thead>
+        <tr><th>Problem</th><th>What to try</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>SmartScreen blocks the installer or exe</td><td>More info → Run anyway.</td></tr>
+        <tr><td>App will not launch</td><td>Install the VC++ x64 redistributable. Keep <code>data</code> next to the exe if you used the zip.</td></tr>
+        <tr><td>Join cannot connect</td><td>Same Wi‑Fi. Type the host IP only (not including :7384 if the field is IP-only). Allow the host through Windows Firewall. The host app must stay open.</td></tr>
+        <tr><td>Joiners on another network</td><td>Not supported yet. Use the same LAN, or a mesh VPN, and join with that IP.</td></tr>
+        <tr><td>Host closed the app</td><td>The table ends. The host device is the authority.</td></tr>
+      </tbody>
+    </table>
+    <p class="note">Internet play (room codes, play from different cities) is not in this build.</p>
+    <footer class="disclaimer">Planecrash Survival is an original game. It is not affiliated with any existing tabletop title. Guide written to match the August 2026 digital edition.</footer>
+  </section>
+
+</body>
+</html>
